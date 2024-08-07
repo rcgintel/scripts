@@ -1,0 +1,154 @@
+// Power Consistency Compare (Supply Set): Equivalent
+// Power Consistency Compare (Retention Strategy): Not-Applicable
+================================================================================
+State Element/PI/PO Supply Set Equivalence Checking
+================================================================================
+Class             DFF       DLAT      PO        PI        BBOX      Total
+--------------------------------------------------------------------------------
+Equivalent        164979    322021    3545      5346      37        495928    
+Non-equivalent    0         0         0         0         0         0         
+Not-compared      0         0         0         0         0         0         
+Waived            0         0         0         0         0         0         
+--------------------------------------------------------------------------------
+Total             164979    322021    3545      5346      37        495928    
+================================================================================
+================================================================================
+State Element/PI/PO Supply Set Equivalence Checking
+================================================================================
+Class             DFF       DLAT      PO        PI        BBOX      Total
+--------------------------------------------------------------------------------
+Equivalent        164979    322021    3545      5346      37        495928    
+Non-equivalent    0         0         0         0         0         0         
+Not-compared      0         0         0         0         0         0         
+Waived            0         0         0         0         0         0         
+--------------------------------------------------------------------------------
+Total             164979    322021    3545      5346      37        495928    
+================================================================================
+================================================================================
+State Element/PI/PO Supply Set Equivalence Checking
+================================================================================
+Class             DFF       DLAT      PO        PI        BBOX      Total
+--------------------------------------------------------------------------------
+Equivalent        164979    322021    3545      5346      37        495928    
+Non-equivalent    0         0         0         0         0         0         
+Not-compared      0         0         0         0         0         0         
+Waived            0         0         0         0         0         0         
+--------------------------------------------------------------------------------
+Total             164979    322021    3545      5346      37        495928    
+================================================================================
+// Power Intent Compare: Non-Equivalent
+=====================================================================================================
+=                                   Power Intent Compare Summary                                    =
+=====================================================================================================
+| Power intent command                      EQ     No-Effect  Not-Comp   Non-EQ    Waive   |  Total
+| -------------------------------------  --------  ---------  --------  --------  -------- | --------
+| add_power_state                               4          0         0         0         0 |        4
+| add_pst_state                                 3          0         0         0         0 |        3
+| associate_supply_set                          3          0         0         0         0 |        3
+| connect_supply_net                           77          0         0         0        15 |       92
+| create_power_domain                           1          0         0         0         0 |        1
+| create_pst                                    1          0         0         0         0 |        1
+| create_supply_net                             2          0         0         0         0 |        2
+| create_supply_port                            2          0         0         0         0 |        2
+| create_supply_set                             1          0         0         0         0 |        1
+| define_always_on_cell                       594          0         0         0         0 |      594
+| define_diode_clamp                           66          0         0         0         0 |       66
+| define_isolation_cell                       636          0         0         0         0 |      636
+| define_level_shifter_cell                   324          0         0         0         0 |      324
+| define_power_switch_cell                     48          0         0         0         0 |       48
+| define_retention_cell                       120          0         0         0         0 |      120
+| name_format                                   1          0         0         0         0 |        1
+| set_design_attributes                         6          0         0         0         1 |        7
+| set_port_attributes                         755          0         0         1        22 |      778
+| set_scope                                     1          0         0         0         0 |        1
+| supply_net_handle*                            4          0         0         0         0 |        4
+-----------------------------------------------------------------------------------------------------
+| Total                                      2649          0         0         1        38 |     2688
+-----------------------------------------------------------------------------------------------------
+| Command Legend:
+|    *: Supply net handle is created by other commands
+=====================================================================================================
+//
+// Power Intent Compare: Non-Equivalent
+//
+================================================================================
+| Power intent differences
+================================================================================
+| 1) Attribute 'UPF_clamp_value':
+|     Status      : Non-Equivalent
+|      - Attribute Class Keypoint #1:
+|         Golden  value: '0' (set_port_attributes at /p/lnlsd/m128/fv/models/LNL.ECO1.ww46p3/LP_COLL/rtl_upf/LNL.ECO2.ww48p6/gtgacspar2_collage_upf_extension.tcl:8898)
+|         Revised value: not specified
+|         Status       : Non-Equivalent
+|         List of keypoints:
+|            - Module pin 'vfl_vfg_inf_up_3_c9fe41eb56987e426a8ead9573264663_aug16sep25'
+|              Status       : Non-Equivalent
+|            - Module pin 'vfl_vfg_inf_up_5_8a2b54105847d16bcb794f9dbcba2d8b_aug16sep25'
+|              Status       : Non-Equivalent
+================================================================================
+
+=====================================================================================================
+=                                   Power Intent Compare Summary                                    =
+=====================================================================================================
+| Power intent command                      EQ     No-Effect  Not-Comp   Non-EQ    Waive   |  Total
+| -------------------------------------  --------  ---------  --------  --------  -------- | --------
+| add_power_state                               4          0         0         0         0 |        4
+| add_pst_state                                 3          0         0         0         0 |        3
+| associate_supply_set                          3          0         0         0         0 |        3
+| connect_supply_net                           77          0         0         0        15 |       92
+| create_power_domain                           1          0         0         0         0 |        1
+| create_pst                                    1          0         0         0         0 |        1
+| create_supply_net                             2          0         0         0         0 |        2
+| create_supply_port                            2          0         0         0         0 |        2
+| create_supply_set                             1          0         0         0         0 |        1
+| define_always_on_cell                       594          0         0         0         0 |      594
+| define_diode_clamp                           66          0         0         0         0 |       66
+| define_isolation_cell                       636          0         0         0         0 |      636
+| define_level_shifter_cell                   324          0         0         0         0 |      324
+| define_power_switch_cell                     48          0         0         0         0 |       48
+| define_retention_cell                       120          0         0         0         0 |      120
+| name_format                                   1          0         0         0         0 |        1
+| set_design_attributes                         6          0         0         0         1 |        7
+| set_port_attributes                         755          0         0         1        22 |      778
+| set_scope                                     1          0         0         0         0 |        1
+| supply_net_handle*                            4          0         0         0         0 |        4
+-----------------------------------------------------------------------------------------------------
+| Total                                      2649          0         0         1        38 |     2688
+-----------------------------------------------------------------------------------------------------
+| Command Legend:
+|    *: Supply net handle is created by other commands
+=====================================================================================================
+//
+// Power Intent Compare: Non-Equivalent
+//
+=====================================================================================================
+=                                   Power Intent Compare Summary                                    =
+=====================================================================================================
+| Power intent command                      EQ     No-Effect  Not-Comp   Non-EQ    Waive   |  Total
+| -------------------------------------  --------  ---------  --------  --------  -------- | --------
+| add_power_state                               4          0         0         0         0 |        4
+| add_pst_state                                 3          0         0         0         0 |        3
+| associate_supply_set                          3          0         0         0         0 |        3
+| connect_supply_net                           77          0         0         0        15 |       92
+| create_power_domain                           1          0         0         0         0 |        1
+| create_pst                                    1          0         0         0         0 |        1
+| create_supply_net                             2          0         0         0         0 |        2
+| create_supply_port                            2          0         0         0         0 |        2
+| create_supply_set                             1          0         0         0         0 |        1
+| define_always_on_cell                       594          0         0         0         0 |      594
+| define_diode_clamp                           66          0         0         0         0 |       66
+| define_isolation_cell                       636          0         0         0         0 |      636
+| define_level_shifter_cell                   324          0         0         0         0 |      324
+| define_power_switch_cell                     48          0         0         0         0 |       48
+| define_retention_cell                       120          0         0         0         0 |      120
+| name_format                                   1          0         0         0         0 |        1
+| set_design_attributes                         6          0         0         0         1 |        7
+| set_port_attributes                         755          0         0         1        22 |      778
+| set_scope                                     1          0         0         0         0 |        1
+| supply_net_handle*                            4          0         0         0         0 |        4
+-----------------------------------------------------------------------------------------------------
+| Total                                      2649          0         0         1        38 |     2688
+-----------------------------------------------------------------------------------------------------
+| Command Legend:
+|    *: Supply net handle is created by other commands
+=====================================================================================================

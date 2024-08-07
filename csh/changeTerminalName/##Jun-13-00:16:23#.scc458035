@@ -1,0 +1,20 @@
++-----------------------------------------------------------------------------+
+| Logfile        : ##Jun-13-00:16:23#.scc458035                               |
+| Job id         : 6598973604177621           Class: (SLES12SP5&&CPUMhz>3199&&256G&&1C) && (!HIGHMEM) Qslot: /CHG/ElastiX|
+| Executed on    : scc458035                  Pool : zsc3_nb2_ppm             |
+| Queueing time  : Tue Jun 13 00:16:15 2023                                   |
+| Starting time  : Tue Jun 13 00:16:23 2023          Qwait:   0h:00m:08s      |
+| Command        : xterm -T FCPV                                              |
++-----------------------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+| Exit Status    : -3002                                                      |
+  NB: The Job has exceeded its execution limit (i.e., it has run for longer than the specified time limit)
+| Finishing time : Thu Jun 15 00:16:30 2023                                   |
+| CPU time       : Usr 1252.11s Sys 94.87s  WC  48h:00m:07s                     |
+| Rusage Stats   : Mem:98066  PF:  25654539/9CSv/f:  0/0     Swaps:0          |
+|                :           Msg:    0/0     IOops:  8/16    Sigs :0          |
+| User Groups    : shdk73, gt1273, gt1274, soc, skl_rtl, dgn7fe, dgn7, n5,    |
+|                : dgn5, dgn5fe, dgp, n5fe, n5p, n3, dgn3, gcp, c2dgusers,    |
+|                : intelall, n3e, n4p, elsx2die, ptlpgcdsd, datools, socrtl,  |
+|                : soc73proc, hdk10nmproc                                     |
++-----------------------------------------------------------------------------+

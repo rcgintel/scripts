@@ -1,0 +1,7 @@
+Matrix,,
+blockName,gtnoderc,gtnode1lnipar1
+runName,run1,run1
+overrideFile,/nfs/site/disks/lnl_m128_a0_mempipe_scratch_01/rcg/test/overrideFile.tcl,/nfs/site/disks/lnl_m128_a0_mempipe_scratch_01/rcg/test/overrideFile.tcl
+floorplanInput,/nfs/zsc3/disks/lnl_m128_a0_node_fp_01/sa6/bank_ww48p2/temp_lynx/builds/gtmempipe.ww50p4_v1/00_dp/160_write_collateral/work/gtnoderc_outputs/,/nfs/zsc3/disks/lnl_m128_a0_node_fp_01/sa6/bank_ww48p2/temp_lynx/builds/gtmempipe.ww50p4_v1/00_dp/160_write_collateral/work/gtnode1cbepar1_outputs/
+setVariable,,"set temp 1"
+startRun,nil,no

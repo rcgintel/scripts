@@ -1,0 +1,17 @@
++-----------------------------------------------------------------------------+
+| Logfile        : ##Dec-06-23:34:05#.scee185526                              |
+| Job id         : 340739529457273            Class: (SLES12SP5&&CPUMhz>3199&&64G&&1C) && (!HIGHMEM) Qslot: /CHG/MeteorLake|
+| Executed on    : scee185526                 Pool : zsc3_nb2_ppm             |
+| Queueing time  : Tue Dec  6 23:34:03 2022                                   |
+| Starting time  : Tue Dec  6 23:34:06 2022          Qwait:   0h:00m:03s      |
+| Command        : xterm -T genFevAudit                                       |
++-----------------------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+| Exit Status    : -3002                                                      |
+  NB: The Job has exceeded its execution limit (i.e., it has run for longer than the specified time limit)
+| Finishing time : Thu Dec  8 23:34:07 2022                                   |
+| CPU time       : Usr 125.29s Sys 1.96s   WC  48h:00m:01s                     |
+| Rusage Stats   : Mem:32     PF:  680628/92 CSv/f:  0/0     Swaps:0          |
+|                :           Msg:    0/0     IOops:  4936/16 Sigs :0          |
+| User Groups    : root                                                       |
++-----------------------------------------------------------------------------+

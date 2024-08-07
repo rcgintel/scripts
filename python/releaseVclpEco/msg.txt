@@ -1,0 +1,20 @@
+ECO Message 
+please run the below commands to get the ECO status for project NVLA0 in Fusion Compiler
+     source /nfs/site/disks/vmisd_vclp_efficiency/forall/rcgProcs.tbc;
+     if {[get_app_var in_gui_session]} {
+ECOTrackerGUI
+}
+     click on showEco and select the ECO that needs to be sourced and commitECO this will dump eco.tcl file use the file as is
+
+
+##########################################
+Block Name : gtcgpinf Block Owner : rcg kdheeraj
+
+1. ECO File : fixLSInsertion.tcl
+
+	a. ECO Team : MV
+	b. Status : pending
+	c. Date generated : 02/08/2024 02:52
+	d. ECO Owner : rcg
+
+

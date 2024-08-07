@@ -1,0 +1,10 @@
+alias mtl_go "cd /nfs/site/disks/mtl_128_b0_intg_mw_01"
+alias mtl_wash "wash -n intelall gmdhw datools soc dgn5 n5 dgn5 dgn5fe dgp n5fe n5p"
+
+alias mtl_setup "source /p/gtkit/bin/gtkit_env -c mtlsd.gcdp128.gt.gen12p73_ECO1_inc5_gcd26a_21ww27p0_rev12_MEMww29e"
+alias mtl_setup "source /p/gtkit/bin/gtkit_env -c mtlsd.gcdp128.gt.gen12p73_BOTR_gcd35h_22ww01p5"
+alias mtl_setup "source /p/gtkit/bin/gtkit_env -c mtlsd.gcdp128.gt.gen12p73_B0v220218_gcd09a_22ww09p2"
+alias mtl_setup "source /p/gtkit/bin/gtkit_env mtlsd.gcdp128.gt.gen12p73_B0v220405_gcd09a_22ww15p4"
+alias gvim /usr/bin/gvim
+alias g /usr/intel/bin/gvim
+alias getTerminal "python3.6.3a /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getTerminal/getTerminal.py"

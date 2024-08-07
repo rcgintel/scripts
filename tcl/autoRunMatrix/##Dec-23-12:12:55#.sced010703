@@ -1,0 +1,16 @@
++-----------------------------------------------------------------------------+
+| Logfile        : ##Dec-23-12:12:55#.sced010703                              |
+| Job id         : 18846162                   Class: SLES12SP5&&CPUMhz>3199&&128G&&1C Qslot: /CHG/MeteorLake|
+| Executed on    : sced010703                 Pool : zsc3_nb2_ppm             |
+| Queueing time  : Thu Dec 23 12:12:53 2021                                   |
+| Starting time  : Thu Dec 23 12:12:55 2021          Qwait:   0h:00m:02s      |
+| Command        : xterm -T terminal                                          |
++-----------------------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+| Exit Status    : -3002                                                      |
+  NB: The Job has exceeded its execution limit (i.e., it has run for longer than the specified time limit)
+| Finishing time : Mon Dec 27 12:12:56 2021                                   |
+| CPU time       : Usr 90.75s  Sys 1.35s   WC  96h:00m:01s                     |
+| Rusage Stats   : Mem:23     PF:  0/0       CSv/f:  0/0     Swaps:0          |
+|                :           Msg:    0/0     IOops:  0/0     Sigs :0          |
++-----------------------------------------------------------------------------+

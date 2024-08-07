@@ -1,0 +1,2 @@
+if you have a prefix file that you have updated and a new prefix file gets dumped 
+we need to compare the prefix and net collection and check the bit length

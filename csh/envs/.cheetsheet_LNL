@@ -1,0 +1,27 @@
+alias lnl_wash "wash -n intelall gmdhw datools soc n3 dgn3 gcp n3e"
+#alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5ww49p4"
+#alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5ww49p4_newFP_fix"
+#alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_presd0p5ww06p1"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5ww08p0"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5ww10p4"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5rww14p1"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5rww16p3"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p8ww22p0"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p8ww25p6_wrep_kit3p10"
+
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd1p0ww35p2_FSO"
+#alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p8ww25p6_wrep_kit3p10_CDTv33"
+
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd1p0ww36p5_FSO2"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd1p0ww42p3_FSO4_golden"
+
+
+alias lnl_go "cd /nfs/site/disks/lnl_m128_a0_mempipe_scratch_01/"
+alias gvim /usr/bin/gvim
+alias g /usr/intel/bin/gvim
+alias getTerminal "python3.6.3a /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getTerminal/getTerminal.py"
+alias lnl_go_vclp "cd /nfs/site/disks/lnl_m128_a0_intg_mw_01/rcg"
+alias lnl_wash_all "wash -n intelall gmdhw datools soc dgn5 n5 dgn5 dgn5fe dgp n5fe n5p n3 dgn3 gcp n3e"
+## vault checkout -block gtnode1lnepar1 -domain sd -subset upf
+
+

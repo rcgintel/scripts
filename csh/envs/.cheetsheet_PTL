@@ -1,0 +1,38 @@
+alias ptl_wash "wash -n intelall gmdhw datools soc n3 dgn3 gcp n3e gcdhw"
+#alias ptl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd0p5ww49p4"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env -c ptlsd.gcdp192.gt.xe3lpg2x6_sd0p0ww07_gcdww07_ww08"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd0p5wrep_gcdww24p4_ww27p6"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd0p8ww30p0_gcdww24p4_30p1"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env -c ptlsd.gcdp192.gt.xe3lpg2x6_sd0p8_updated_ww34p5_gcdww34_SD_0P8_P2"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env -c ptlsd.gcdp192.gt.xe3lpg2x6_sd0p8_updated_ww34p5_gcdww34_SD_0P8_P2_CDT37"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env -c ptlsd.gcdp192.gt.xe3lpg2x6_sd0p8_ww35p6_gcdww35SD_PFZ_ww35p7_CDT41"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW41p5_FSO4_ww41_SD_GCD_FSO2_ww41p5"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env -c ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW41p5_FSO4_ww43_SD_GCD_FSO4_ww44p1"
+alias ptl_setup "source /p/ptlsd/gcdp192/setup/gt.xe3lpg2x6_sd1p0_WW45p1_FSO5_ww44_SD_GCD_FSO5_ww45p2"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env   -c   ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW45p1_FSO5_ww44_SD_GCD_FSO5_ww45p2"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW45p1_FSO5_ww45_SD_GCD_FSO6_ww46p1; setenv GTLIB_SMC_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a; setenv GTLIB_SMC_LIB_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a/lib/"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW52p3_SIGNOFF_SCALAR_ECO_ENV"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW1p5_ECO3_ww02_PTL_P_GCD_SD_ECO3_24ww2p7 ; setenv GTLIB_SMC_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a; setenv GTLIB_SMC_LIB_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a/lib/"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW1p5_ECO3_WW05_PTL_P_GCD_SD_ECO6_24ww5p2 "
+#; setenv GTLIB_SMC_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a; setenv GTLIB_SMC_LIB_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a/lib/"
+alias ptl_setup "source /p/gtkit/bin/gtkit_env -c  ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW3p5_ECO3_refresh_Drop_WW06_PTL_P_GCD_SD_ECO7_ww6p3"
+
+#ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW39p4_FSO2_ww37SD_GCD_GTPFZ_ww39p6"
+#ptlsd.gcdp192.gt.xe3lpg2x6_sd0p8_ww35p6_gcdww35SD_PFZ_ww35p7_CDT41"
+#source /p/gtkit/bin/gtkit_env ptlsd.gcdp192.gt.xe3lpg2x6_sd1p0_WW41p5_FSO4_ww41_SD_GCD_FSO2_ww41p5
+#/p/gtkit/bin/gtkit_env -c ptlsd.gcdp192.gt.xe3lpg2x6_sd0p5_gcdww19p4_ww20p4_v4scon"
+#setenv GTLIB_SMC_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a
+#setenv GTLIB_SMC_LIB_PATH /p/ptlsd/gcdp192/env/library/tsmc_n3e/smc/ptl_p_smc_n3e_rev27_23ww49a/lib/
+
+
+alias ptl_go_ungfx "cd  /nfs/site/disks/ptlp_a0_ungfx_fp_01/"
+alias ptl_go_gt "cd  /nfs/site/disks/ptlp_a0_nodecom_par_01/lynx/models/"
+#/nfs/site/disks/ptl_m128_a0_mempipe_scratch_01/"
+alias gvim /usr/bin/gvim
+alias g /usr/intel/bin/gvim
+alias getTerminal "python /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getTerminal/getTerminal.py -P PTLA0 -M 32"
+alias ptl_go_vclp "cd /nfs/site/disks/ptlp_a0_intg_mw_01/rcg"
+alias ptl_wash_all "wash -n intelall gmdhw datools soc dgn5 n5 dgn5 dgn5fe dgp n5fe n5p n3 dgn3 gcp n3e"
+## vault checkout -block gtnode1lnepar1 -domain sd -subset upf
+alias ptl_setup_doit "cp /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getAllDataFromVault/dodo.py ."
+alias ptl_flash_link "/p/synergie/release/flash/staging/latest/flash.py --server-only"

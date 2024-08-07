@@ -1,0 +1,22 @@
++-----------------------------------------------------------------------------+
+| Logfile        : ##Sep-06-23:28:49#.scc827066.zsc3_tiers2_vp.3986791424617189|
+| Job id         : 3986791424617189           Class: (SLES12SP5&&CPUMhz>3199&&128G&&1C) && (!HIGHMEM) Qslot: /CHG/ElastiX|
+| User           : rcg                        Full Id: zsc3_tiers2_vp.3986791424617189|
+| Class Reservation : cores=1,general_ramp=1:duration=60s,memory=128          |
+| Executed on    : scc827066                  Pool : zsc3_nb2_ppm             |
+| Queueing time  : Wed Sep  6 23:28:46 2023                                   |
+| Starting time  : Wed Sep  6 23:28:49 2023          Qwait:   0h:00m:03s      |
+| Command        : xterm -T test                                              |
++-----------------------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+| Exit Status    : 0                                                          |
+| Finishing time : Wed Sep  6 23:28:51 2023                                   |
+| CPU time       : Usr 0.285s  Sys 0.061s  WC  0h:00m:02s                     |
+| Rusage Stats   : Mem:0      PF:  0/0       CSv/f:  0/0     Swaps:0          |
+|                :           Msg:    0/0     IOops:  1304/128Sigs :0          |
+| User Groups    : shdk73, gt1273, gt1274, soc, skl_rtl, dgn7fe, dgn7, n5,    |
+|                : dgn5, dgn5fe, dgp, n5fe, n5p, n3, dgn3, gcp, c2dgusers,    |
+|                : intelall, n3e, n4p, gcdhw, elsx2die, ptlpgcdsd, ptlugcdsd, |
+|                : datools, socrtl, soc73proc, hdk10nmproc                    |
+| Actual Class Reservation : cores=1,general_ramp=1:duration=60s,memory=128   |
++-----------------------------------------------------------------------------+

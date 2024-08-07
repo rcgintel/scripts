@@ -1,0 +1,36 @@
+alias xe2_wash "wash -n intelall dgn7fe dgn7 n5 dgn5 dgn5fe dgp n5fe n5p datools"
+
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x3.gt.gen12p93dx2_X2_ww52p2"
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x2.gt.gen12p93dx2_X2_ww52p2_X2_setup"
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x2.gt.gen12p93dx2_X2_23ww10p3_pre_sd0p8_refresh_Rep_model"
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x2.gt.gen12p93dx2_X2_23ww11p6_sd0p8_model"
+
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x2.gt.gen12p93dx2_X2_23ww13p6_pre_pin_freeze_rep_model"
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x2.gt.gen12p93dx2_X2_23ww18p7_Pin_Freeze_Repeater_model"
+alias xe2_setup "source /p/gtkit/bin/gtkit_env -c elastixsd.x2.gt.gen12p93dx2_X2_23ww19p6_FSO_model"
+
+
+alias xe2_go "cd /nfs/site/disks/elg_x2_a0_msnodecom_common_01"
+
+alias xe2_go_top "cd /nfs/site/disks/elg_x2_a0_msnodecom_fp_01/gjothy/gtmsnodecom_ww03p3_run1/builds/gtmsnodecom.ww05p2_run2/"
+alias xe2_go_top "cd /nfs/site/disks/elg_x2_a0_msnodecom_fp_01/rcg/"
+alias xe2_spv "cd /nfs/site/disks/elg_x2_a0_msnodecom_pv_01/rcg"
+alias xe2_spv2 "cd /nfs/site/disks/elg_x2_a0_msnodecom_pv_02/rcg"
+alias xe2_spv3 "cd /nfs/site/disks/elg_x2_a0_msnodecom_pv_03/rcg"
+
+alias gvim /usr/bin/gvim
+alias g /usr/intel/bin/gvim
+alias getTerminal "python3.6.3a /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getTerminal/getTerminal.py -P Xe2A0 "
+
+#### find a list of qslots 
+#nbstatus --target zsc3_express qslots | grep Elasti
+
+
+### rcg test bgm2
+alias gtk 'source /p/gtkit/bin/gtkit_env -c elastixsd.g31.gt.BMG_K_24ww08p2'
+ 
+#gtkenv -c elastixsd.g31.gt.BMG_K_24ww08p2
+
+#/nfs/site/disks/elg_g31_a0_axfe_rctie_05/lynx/models/BMG_K_ww03p6/
+#/nfs/site/disks/elg_g31_a0_axfe_rctie_05/rcg/runs
+

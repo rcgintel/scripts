@@ -1,0 +1,23 @@
+{ 
+    "rcg": {
+        "userName":"rcg",
+        "userStatus": "MVSignoff",
+        "userAccess": 1,
+        "userTeam": "MV",
+        "userLead": "rcg"
+    }, 
+    "kdheeraj": {
+        "userName":"kdheeraj",
+        "userStatus": "Signoff",
+        "userAccess": 1,
+        "userTeam": "MV",
+        "userLead": "rcg"
+    },
+    "vajith": {
+        "userName":"vajith",
+        "userStatus": "Signoff",
+        "userAccess": 1,
+        "userTeam": "MV",
+        "userLead": "rcg"
+    }
+}

@@ -1,0 +1,6 @@
+this script is used to get the MR value of the floorplan data 
+
+1. get the mergeBI csv file from top level floorplan team
+2. from the mergeBI csv file get the senderInst, senderBundel, senderMR, targetInst, targetBundel, targetMR etc we only need basic info see the tcl script for details
+3. physical manhattan deistance only will be checked
+4. open fusion compiler and source the tcl file 

@@ -1,0 +1,7 @@
+DEBUG     :2024-06-27 00:53:23,090 
+************************************
+            PT SERVER CLI
+************************************
+
+DEBUG     :2024-06-27 00:53:23,090 PTSERVER CLI INITIAITED AT /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/ptServer by rcg
+DEBUG     :2024-06-27 00:53:23,090 Received command show_block with options 

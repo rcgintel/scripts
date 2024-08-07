@@ -1,0 +1,19 @@
+alias lnl_wash "wash -n intelall gmdhw datools soc n3 dgn3 gcp n3e"
+
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_sd1p0ww42p3_FSO4_golden"
+
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_23ww34p1_B0_sqidi_HSD14019776569"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_23ww19p4_B0"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env -c lnlsd.m128.gt.gen12p93dl2_23ww41p1_B0_PROD1_eco"
+alias lnl_setup "source /p/gtkit/bin/gtkit_env lnlsd.m128.gt.gen12p93dl2_23ww19p4_B0_eco"
+alias lnl_go "cd /nfs/site/disks/lnl_m128_a0_mempipe_scratch_01/"
+alias gvim /usr/bin/gvim
+alias g /usr/intel/bin/gvim
+alias getTerminal "python3.6.3a /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getTerminal/getTerminal.py"
+alias lnl_go_vclp "cd /nfs/site/disks/lnl_m128_b0_intg_mw_01/rcg"
+alias lnl_wash_all "wash -n intelall gmdhw datools soc dgn5 n5 dgn5 dgn5fe dgp n5fe n5p n3 dgn3 gcp n3e"
+## vault checkout -block gtnode1lnepar1 -domain sd -subset upf
+alias lnl_setup_doit "cp /nfs/site/disks/vmisd_vclp_efficiency/rcg/scripts/versionControl/python/getAllDataFromVault/dodo.py ."
+
+#/nfs/site/disks/lnl_m128_b1_mempipe_par_02
+#/nfs/site/disks/lnl_m128_b1_mempipe_par_02/rcg/

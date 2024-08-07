@@ -1,0 +1,1386 @@
+#
+# This proc written to convert unit bbox netlist to par bbox for easy par to par connection
+# invoke in DC, 
+#
+#
+#
+
+if {0} {
+    set opts(-skip_partitions)   "gtbgfmcxlpar gtcgpinf"
+    set opts(-custom_bbox_designs)   "gtcxl_vccgt_wrap gtcxl_vccinf_wrap dfx_tieoff scandfx_cdfxclkgen_wrap gtinfpar_vccgt_wrap gtinfpar_vccinf_wrap"
+
+}
+
+proc ::upf::make_design_par_bbox_dc {args} {
+    parse_proc_arguments -args $args opts
+    set current_design_name [get_object_name [current_design]]
+    set designs [hier::get_designs -node_type partition]
+
+    set skip_partitions ""
+    if {[info exists opts(-skip_partitions)]} {
+        set skip_partitions $opts(-skip_partitions)
+    }
+
+    if {[info exists opts(-custom_bbox_designs)]} {
+        set designs [lsort -unique [concat $designs $opts(-custom_bbox_designs)]]
+    }
+
+        foreach design $designs {
+            if {[lsearch $skip_partitions $design] != -1} {continue}
+            current_design $design
+            set cd_design_name [get_object_name [current_design]]
+            if {$cd_design_name eq $current_design_name} {
+                #--for some reason current des failed as may be bbox
+                continue
+            }
+            remove_cell *
+            current_design $current_design_name
+        }
+        foreach design $designs {
+            if {[lsearch $skip_partitions $design] != -1} {continue}
+            current_design $design
+            set cd_design_name [get_object_name [current_design]]
+            if {$cd_design_name eq $current_design_name} {
+                #--for some reason current des failed as may be bbox
+                continue
+            }
+            remove_net *
+            current_design $current_design_name
+        }
+
+
+}
+define_proc_attributes ::upf::make_design_par_bbox_dc \
+    -info "Temporally adds or removes blockings before or after power switch insertion" \
+    -command_group upf \
+    -define_args {
+        {-skip_partitions "output file name" "" boolean optional}
+        {-custom_bbox_designs "output file name" "" boolean optional}
+    }
+
+############################################
+#--Following only meant for PTL-P so only generate connectivyt for full chip port connections to help generate Feedthru XML
+############################################
+
+
+proc ::upf::create_segundo_conn_file_from_par_bbox {args} {
+    parse_proc_arguments -args $args opts
+    set current_design_name [get_object_name [current_design]]
+    set fp [open $opts(-output) w]
+
+    foreach_in_collection port [get_ports -filter "direction==in"] {
+        set port_name [get_object_name $port]
+        set loads [get_pins -quiet -leaf -of [get_nets -quiet -of $port] -filter "direction==in"]
+        foreach_in_collection load $loads {
+            set load_par_name [get_object_name [get_cells -of $load]]
+            set load_pin_name [get_attribute $load name]
+            puts $fp "$current_design_name/$load_par_name,$load_pin_name,in,$current_design_name,$port_name,in,0"
+        }
+    }
+    puts $fp ""
+    foreach_in_collection port [get_ports -filter "direction==out"] {
+        set port_name [get_object_name $port]
+        set loads [get_pins -quiet -leaf -of [get_nets -quiet -of $port] -filter "direction==in"]
+        set driver [get_pins -quiet -leaf -of [get_nets -quiet -of $port] -filter "direction==out"]
+        if {$driver eq ""} {
+            puts "ERROR $port_name has no drivers"
+            continue
+        }
+        if {[sizeof_collection $driver] > 1 } {
+            puts "ERROR $port_name has multipel drivers [get_object_name $driver]"
+            continue
+        }
+        set driver_par_name [get_object_name [get_cells -of $driver]]
+        set driver_pin_name [get_attribute $driver name]
+        puts $fp "$current_design_name,$port_name,out,$current_design_name/$driver_par_name,$driver_pin_name,out,0"
+
+        foreach_in_collection load $loads {
+            set load_par_name [get_object_name [get_cells -of $load]]
+            set load_pin_name [get_attribute $load name]
+            puts $fp "$current_design_name/$load_par_name,$load_pin_name,in,$current_design_name/$driver_par_name,$driver_pin_name,out,0"
+        }
+    }
+
+
+    close $fp
+#target_inst,target_port,target_dir,driver_inst,driver_port,driver_dir,skip
+#gen12p73d2x4x16/gtunslice1/clockgen1,gcroottrunk,in,gen12p73d2x4x16/gtunslice1/gtcgpinf1/gtcgpinf_vccgt_wrap1,gcroottrunk,out,0
+#gen12p73d2x4x16/gtunslice1/gtcgpinf1/gtcgpinf_vccgt_wrap1,FuseL3HashModeSelect_assign_unit[0],in,gen12p73d2x4x16/gtunslice1/gtcgpinf1/gtcgpinf_vccinf_wrap1,FuseL3HashModeSelect_assign_unit[0],out,0
+
+
+}
+define_proc_attributes ::upf::create_segundo_conn_file_from_par_bbox \
+    -info "Temporally adds or removes blockings before or after power switch insertion" \
+    -command_group upf \
+    -define_args {
+        {-output "output file name" "" string required}
+    }
+
+#
+
+
+proc ::upf::analyze_va_connectivity {args} {
+    parse_proc_arguments -args $args opts
+
+#TBD
+#   Ignore regular pin load if fanout is pin matches driver domain 
+#  Nested domain, if driver domain is different than current VA, then skip (based upon input argument)
+#TBD
+
+
+    #--buffer up rtl feedthrus to ease analsys. will remove at end
+    #--though remove buffer at end still don't run on production DB as it may affect dont-touch idela net etc...
+    set mv_restriction_buffers [get_flat_cells -filter "name=~MV_RESTRICTION*"]
+    if {$mv_restriction_buffers != {}} {
+        remove_buffers $mv_restriction_buffers
+    }
+    set sfp [open $opts(-summary) w] 
+    set dfp ""
+    if {[info exists opts(-detailed)]} {
+        set dfp [open $opts(-detailed) w] 
+    }
+    set temp_buffers [upf::buffer_up_unit_feedthrus]
+    upf::normalize_supply_net_attribute
+    set from_va ""
+    set to_va ""
+    #array unset a_supply_to_va
+    set all_vas [get_voltage_areas -hier]
+    set from_vas ""
+    set to_vas ""
+    if {[info exists opts(-driver_va_supplies)]} {
+        set driver_va_supplies [lsort -unique [get_object_name [get_supply_nets $opts(-driver_va_supplies)]]]
+    } else {
+        set driver_va_supplies [get_object_name [get_supply_nets]]
+    }
+
+    if {[info exists opts(-load_va_supplies)]} {
+        set load_va_supplies [lsort -unique [get_object_name [get_supply_nets $opts(-load_va_supplies)]]]
+    } else {
+        set load_va_supplies [get_object_name [get_supply_nets]]
+    }
+    set to_vas ""
+    foreach load_va_supply $load_va_supplies {
+        append_to_collection to_vas [filter_collection $all_vas "power_net.normalized_supply_net == $load_va_supply"] -unique
+    }
+    set unbuffered_va_spacing_threshold 30.0
+    puts $sfp "driver type,driver domain primary power,driver supply net,load type,load domain primary power,load supply net,path count"
+    set dtypes {pin port}
+    set ltypes {pin port}
+    if {[info exists opts(-driver_types)]} {
+        set dtypes $opts(-driver_types)
+    }
+    if {[info exists opts(-load_types)]} {
+        set ltypes $opts(-load_types)
+    }
+    set all_ebbs [all_macro_cells]
+    set all_ebb_in_pins [get_pins -quiet -of_objects $all_ebbs -filter "direction==in"]
+    set all_ebb_out_pins [get_pins -quiet -of_objects $all_ebbs -filter "direction==out"]
+    #--to improve runtime, find expanded VA poly for each primary supply nets
+    array unset a_vaprimary_to_poly
+    set unbuffered_reach_distance 30.0
+
+    foreach_in_collection va $all_vas {
+        set primary [get_attribute $va normalized_power_net]
+        set a_vaprimary_to_poly($primary,actual) [transform_polygons -objects $va]
+        set a_vaprimary_to_poly($primary,extended) [resize_polygons $a_vaprimary_to_poly($primary,actual) -size $unbuffered_reach_distance ]
+    }
+
+    puts $dfp "driver type,driver_name,driver placement,driver_va_supply,driver_supply_net,load type,load_pin,load placement,load_domain_primary,load pin or port srsn, load mv type,mv cell out srsn,distance far than $unbuffered_reach_distance,comment1,comment2,comment3"
+    foreach driver_va_supply $driver_va_supplies {
+        set from_vas [filter_collection $all_vas "power_net.normalized_supply_net == $driver_va_supply"]
+        set from_pds [get_attribute $from_vas power_domains]
+
+        set from_elements [filter_collection [get_attribute $from_pds elements] "object_class==cell"]
+        if {[filter_collection [get_attribute $from_pds elements] "object_class==module"] != {}} {
+            #--this is top level domain. Add top level modules belong to this domain to its element list
+            #--for cells second level of hier and belogn to this domain should already be cell elements
+            append_to_collection from_elements [remove_from_collection [get_cells -quiet -of_objects $from_pds] -intersect [get_cells -quiet -filter "is_hierarchical==true"]]
+        }
+        set from_ports [filter_collection [get_ports -quiet] "direction==in && UPF_related_supply_set.power_supply_net.normalized_supply_net == $driver_va_supply"]
+        set from_pins [get_pins -quiet -of_objects $from_elements -filter "direction==out"]
+
+        array unset driver_types
+        set driver_types(pin) [filter_collection [all_fanin -to [get_nets -quiet -of_objects $from_pins] -flat -level 0] "object_class==pin"]
+        set driver_types(port) $from_ports
+
+        set driver_extended_va_poly [create_geo_mask]
+        if {[info exists a_vaprimary_to_poly($driver_va_supply,extended)]} {
+            set driver_extended_va_poly $a_vaprimary_to_poly($driver_va_supply,extended)
+        }
+
+        foreach dtype $dtypes {
+            set all_driver_supply_nets [lsort -unique [get_attribute $driver_types($dtype) UPF_related_supply_set.power_supply_net.normalized_supply_net]]
+            foreach driver_supply_net $all_driver_supply_nets {
+                set class_from_drivers [filter_collection $driver_types($dtype) "UPF_related_supply_set.power_supply_net.normalized_supply_net == $driver_supply_net"]
+                set all_loads [all_fanout -from [get_nets -quiet -of_objects $class_from_drivers] -flat -level 0]
+                array unset load_types
+                set load_types(pin) [filter_collection $all_loads "object_class==pin"]
+                set load_types(port) [filter_collection $all_loads "object_class==port"]
+
+                foreach ltype $ltypes {
+                    set all_load_supply_nets [lsort -unique [get_attribute $load_types($ltype) UPF_related_supply_set.power_supply_net.normalized_supply_net]]
+                    foreach load_supply_net $all_load_supply_nets {
+                        if {($dtype eq "pin") && ($ltype eq "pin") && ($driver_va_supply eq $driver_supply_net) && ($driver_supply_net eq $load_supply_net)} {
+                            #--pin to pin connection driver load in same domain
+                            continue
+                        }
+                        set class_loads [filter_collection $load_types($ltype) "UPF_related_supply_set.power_supply_net.normalized_supply_net == $load_supply_net"]
+                        if {$ltype eq "pin"} {
+                            set load_domains [get_power_domains -quiet -of_objects [get_cells -quiet -of_objects $class_loads]]
+                            set load_domain_primaries [lsort -unique [get_attribute $load_domains "primary_power.normalized_supply_net"]]
+                            foreach load_domain_primary $load_domain_primaries {
+                                set cur_supply_load_domains [filter_collection $load_domains "primary_power.normalized_supply_net == $load_domain_primary"]    
+                                set cur_domain_load_cells [remove_from_collection [get_cells -quiet -of_objects $cur_supply_load_domains] -intersect [get_cells -quiet -of_objects $class_loads]]
+                                set cur_domain_load_pins [remove_from_collection $class_loads -intersect [get_pins -quiet -of_objects $cur_domain_load_cells]]
+                                puts $sfp "$dtype,$driver_va_supply,$driver_supply_net,$ltype,$load_domain_primary,$load_supply_net,[sizeof_collection $cur_domain_load_pins]"
+                            }
+                        } else {
+                            puts $sfp "$dtype,$driver_va_supply,$driver_supply_net,$ltype,$load_supply_net,$load_supply_net,[sizeof_collection $class_loads]"
+                        }
+                    }
+                }
+            }
+            #--detail report
+            if {$dfp != {}} {
+                foreach_in_collection driver $driver_types($dtype) {
+                    set driver_name [get_object_name $driver]
+                    set driver_supply_net [get_attribute $driver UPF_related_supply_set.power_supply_net.normalized_supply_net]
+                    set all_loads [all_fanout -from [get_nets -quiet -of_objects $driver] -flat -level 0]
+                    set driver_va_poly $driver_extended_va_poly
+                    if {$dtype eq "port"} {
+                        set driver_va_poly [resize_polygons -objects $driver -size $unbuffered_reach_distance]
+                    }
+                    set driver_placement_status float
+                    if {$dtype eq "pin"} {
+                        if {[regexp {fixed|locked} [get_attribute [get_cells -of $driver] physical_status]]} {
+                            set driver_placement_status fixed
+                        }
+                    }
+                    foreach ltype $ltypes {
+                        if {$ltype eq "pin"} {
+                            set load_pins [filter_collection $all_loads "object_class==pin"]
+                            if {[info exists opts(-load_va_supplies]} {
+                                #--user want fanout pins to reported only if going to specific domains/vas only
+                                set load_va_cells [remove_from_collection -intersect [get_cells -quiet -of $load_pins] -intersect [get_cells -quiet -of $to_vas]]
+                                set load_pins [remove_from_collection $load_pins -intersect [get_pins -quiet -of $load_va_cells]]
+                            }
+                            set load_domains [get_power_domains -quiet -of_objects [get_cells -quiet -of_objects $load_pins]]
+                            set load_domain_primaries [lsort -unique [get_attribute $load_domains "primary_power.normalized_supply_net"]]
+                            #--classify based upon primary power of load pin domains
+                            foreach load_domain_primary $load_domain_primaries {
+                                set load_va_poly $a_vaprimary_to_poly($load_domain_primary,actual)
+                                set far_va_endpoints_flag [get_attribute [compute_polygons -objects1 $driver_va_poly -objects2 $load_va_poly -operation AND] is_empty]
+                                set cur_supply_load_domains [filter_collection $load_domains "primary_power.normalized_supply_net == $load_domain_primary"]
+                                set cur_domain_load_cells [remove_from_collection [get_cells -quiet -of_objects $cur_supply_load_domains] -intersect [get_cells -quiet -of_objects $load_pins]]
+                                set cur_domain_load_pins [remove_from_collection $load_pins -intersect [get_pins -quiet -of_objects $cur_domain_load_cells]]
+                                set cur_domain_load_srsns [lsort -unique [get_attribute $cur_domain_load_pins "UPF_related_supply_set.power_supply_net.normalized_supply_net"]]
+                                foreach cur_domain_load_srsn $cur_domain_load_srsns {
+                                    set cur_domain_srsn_load_pins [filter_collection $cur_domain_load_pins "UPF_related_supply_set.power_supply_net.normalized_supply_net == $cur_domain_load_srsn"]
+                                    array unset a_cur_load_pins
+                                    set a_cur_load_pins(ebb_pin) [remove_from_collection $all_ebb_in_pins -intersect $cur_domain_srsn_load_pins]
+                                    set cur_domain_srsn_load_pins [remove_from_collection $cur_domain_srsn_load_pins $a_cur_load_pins(ebb_pin)]
+
+                                    set a_cur_load_pins(regular_pin) $cur_domain_srsn_load_pins
+                                    foreach cell_type {is_isolation_cell level_shifter} {
+                                        foreach pin_type {data_pin enable_pin} {
+                                            set a_cur_load_pins(${cell_type}_${pin_type}) [filter_collection $cur_domain_srsn_load_pins "lib_pin.${cell_type}_${pin_type}==true"]
+                                            set a_cur_load_pins(regular_pin) [remove_from_collection $a_cur_load_pins(regular_pin) $a_cur_load_pins(${cell_type}_${pin_type})]
+                                        }
+                                    }
+                                    foreach key [array names a_cur_load_pins] {
+                                        
+                                        set load_pins $a_cur_load_pins($key)
+                                        set fixed_load_cells [get_cells -quiet -of $load_pins -filter "physical_status=~*fixed* || physical_status=~*locked*"]
+                                        set unfixed_load_cells [remove_from_collection [get_cells -quiet -of $load_pins] $fixed_load_cells]
+                                        set unfixed_load_pins [remove_from_collection [get_pins -quiet -of $unfixed_load_cells] -intersect $load_pins]
+                                        set fixed_load_pins [remove_from_collection [get_pins -quiet -of $fixed_load_cells] -intersect $load_pins]
+                                        foreach_in_collection load_pin $unfixed_load_pins {
+                                            set load_pin_name [get_object_name $load_pin]
+                                            set mv_cell_out_srsn "NA"
+                                            if {[regexp {is_isolation_cell|level_shifter} $key]} {
+                                                set mv_cell_out_srsn [get_attribute [get_pins -of [get_cells -of $load_pin] -filter "direction==out"] "UPF_related_supply_set.power_supply_net.normalized_supply_net"]
+                                            }
+                                            puts $dfp "$dtype,$driver_name,$driver_placement_status,$driver_va_supply,$driver_supply_net,$ltype,$load_pin_name,float,$load_domain_primary,$cur_domain_load_srsn,$key,$mv_cell_out_srsn,$far_va_endpoints_flag"
+                                        }
+                                        foreach_in_collection load_pin $fixed_load_pins {
+                                            set far_endpoints_flag [get_attribute [compute_polygons -objects1 $driver_va_poly -objects2 $load_pin -operation AND] is_empty]
+                                            set load_pin_name [get_object_name $load_pin]
+                                            if {[regexp {is_isolation_cell|level_shifter} $key]} {
+                                                set mv_cell_out_srsn [get_attribute [get_pins -of [get_cells -of $load_pin] -filter "direction==out"] "UPF_related_supply_set.power_supply_net.normalized_supply_net"]
+                                            }
+                                            puts $dfp "$dtype,$driver_name,$driver_placement_status,$driver_va_supply,$driver_supply_net,$ltype,$load_pin_name,fixed,$load_domain_primary,$cur_domain_load_srsn,$key,$mv_cell_out_srsn,$far_endpoints_flag"
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+                        if {$ltype eq "port"} {
+                            set load_ports  [filter_collection $all_loads "object_class==port"]
+                            set load_ports_srsns [lsort -unique [get_attribute $load_ports "UPF_related_supply_set.power_supply_net.normalized_supply_net"]]
+                            foreach load_ports_srsn $load_ports_srsns {
+                                set cur_srsn_load_ports [filter_collection $load_ports "UPF_related_supply_set.power_supply_net.normalized_supply_net==$load_ports_srsn"]
+                                foreach_in_collection load_port $cur_srsn_load_ports {
+                                    set load_va_poly [resize_polygons -objects $load_port -size $unbuffered_reach_distance]
+                                    set far_endpoints_flag [get_attribute [compute_polygons -objects1 $driver_va_poly -objects2 $load_va_poly -operation AND] is_empty]
+                                    set load_port_name [get_object_name $load_port]
+                                    puts $dfp "$dtype,$driver_name,$driver_placement_status,$driver_va_supply,$driver_supply_net,$ltype,$load_port_name,fixed,$load_ports_srsn,$load_ports_srsn,port,NA,$far_endpoints_flag"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if {$temp_buffers != {}} {
+        remove_buffers $temp_buffers
+    }
+
+    close $sfp
+    if {$dfp != ""} {
+        close $dfp
+    }
+}
+
+define_proc_attributes ::upf::analyze_va_connectivity \
+    -info "Temporally adds or removes blockings before or after power switch insertion" \
+    -command_group upf \
+    -define_args {
+        {-driver_va_supplies "output file name" "" string optional}
+        {-load_va_supplies "output file name" "" string optional}
+        {-driver_types "output file name" "" string optional}
+        {-load_types "output file name" "" string optional}
+        {-summary "output file name" "" string required}
+        {-detailed "output file name" "" string optional}
+    }
+
+
+
+
+#--This proc puts buffer on RTL unit feedthrus, it is needed for cross domain analysis
+#--if net going through a domain as feedthru in RTL, it will be missed by fanin/fanout and analysis will be not real.
+#--this put buffer on such rtl unit feedthrus
+
+
+proc ::upf::buffer_up_unit_feedthrus { args } {
+    parse_proc_arguments -args $args opts
+    util::timestamp dpmv::upf_bbox_partition -mark
+
+    set all_units [get_cells -quiet -filter "is_hierarchical==true"]
+        #--find rtl feedthru pins that are known to be not on cross domain to ease processing later on
+        set fake_hier_ft_pins ""
+        foreach rexp [upf::params aon_design_rexp] {
+            append_to_collection fake_hier_ft_pins [get_pins -quiet -of_objects [filter_collection [get_cells -hier -filter "is_hierarchical==true"] -regexp "full_name=~\"$rexp\""]] -unique
+        }
+        #--instead of tracing partition ports, going unit by unit, as this is needed for checking VA crossings later on
+        #--for runtime mering operations across units, and doing fanin/fanout as less as possible
+        set new_interface_buffer ""
+        util::timestamp all_unit_ft_buffering -mark
+        set all_unit_output_feedthru_pins ""
+        foreach_in_collection unit $all_units {
+            set unit_name [get_object_name $unit]
+            set unit_input_pins [get_pins -of_objects $unit -filter "direction==in"]
+            set unit_output_pins [get_pins -of_objects $unit -filter "direction==out"]
+
+            #--Unit Feedthrus
+            #--Skipping buffering unit_input_feedthru, may crease false MV violation, e.g. isolation enable driving isolators and feedthru to another unit
+            #--Buffering at output is safe as FE will have assumed buffer somewhere between input and output
+
+            #--to reduce run time narrow down to potential pins that could be feedthrus, find nets that are connected to input as well as output pin of this unit.
+            #--This may be misleading if a net connects two pins outside the unit, and require furhter processing
+
+            set potential_out_feedthru_pins [remove_from_collection [get_pins -quiet -of_objects [get_nets -seg -quiet -of_objects $unit_input_pins] -filter "direction==out"] -intersect $unit_output_pins]
+
+            set potential_ftnets [get_nets -seg -quiet -of_objects $potential_out_feedthru_pins -filter "full_name=~$unit_name/*"]
+            foreach_in_collection ftnet $potential_ftnets {
+                #--this is truely ftunit if net connected to input pin as well sa output pin at same logicaly hierarchy
+                set ftnet_parent_cell_pins [get_pins -of_objects [get_attribute $ftnet parent_cell]]
+                set ftnet_parent_cell_pins [remove_from_collection $ftnet_parent_cell_pins $fake_hier_ft_pins]
+                set ft_input_pin [remove_from_collection [get_pins -quiet -of_objects $ftnet -filter "direction==in"] -intersect $ftnet_parent_cell_pins]
+                set ft_output_pin [remove_from_collection [get_pins -quiet -of_objects $ftnet -filter "direction==out"] -intersect $ftnet_parent_cell_pins]
+                if {($ft_input_pin != {}) && ($ft_output_pin != {})} {
+                    append_to_collection all_unit_output_feedthru_pins $ft_output_pin
+                }
+            }
+        }
+        if {$all_unit_output_feedthru_pins != {}} {
+            append_to_collection new_interface_buffer [add_buffer -new_cell_names [dpmv::params upf_bbox,anchor_cell_prefix]_UNIT_FT_OUT -new_net_names upf_bbox_net -lib_cell [ftopt::params tap_isol,buf_cell] [get_nets -quiet -of_objects $all_unit_output_feedthru_pins -boundary lower]]
+        }
+        util::timestamp all_unit_ft_buffering
+    return $new_interface_buffer
+}
+define_proc_attributes ::upf::buffer_up_unit_feedthrus \
+    -info "Turn Partition into a bbox, keep UPF aspect at interface\n" \
+    -command_group upf \
+    -define_args {
+    }
+
+
+
+
+#--Moving following to kit so commented for now
+#
+#proc ::upf::normalize_supply_net_attribute {args} {
+#    parse_proc_arguments -args $args opts
+##fc_shell> filter_collection [get_ports gp_g240_port_0_MEOM] UPF_related_supply_set.power_supply_net.full_name==VNNAON
+#    
+#    redirect /dev/null {define_user_attribute -class {supply_net power_domain voltage_area} -type string normalized_supply_net}
+#
+#    #--buffer up rtl feedthrus to ease analsys. will remove at end
+#    #--though remove buffer at end still don't run on production DB as it may affect dont-touch idela net etc...
+#    
+#    array unset a_equivalent_supply_nets
+#    array unset a_upf_supply_to_pg_net
+#    array unset a_pg_net_to_upf_supply
+#    upf::get_supply_pg_net_map -equivalent_supply_nets a_equivalent_supply_nets -upf_supply_to_pg_net a_upf_supply_to_pg_net -pg_net_to_upf_supply a_pg_net_to_upf_supply
+#
+#    foreach_in_collection supply_net [get_supply_nets -hier] {
+#        set supply_net_name [get_object_name $supply_net]
+#        set top_supply_net $supply_net_name
+#        if {[info exists a_upf_supply_to_pg_net($supply_net_name)]} {
+#            set top_supply_net $a_upf_supply_to_pg_net($supply_net_name)
+#        }
+#        set_attribute $supply_net normalized_supply_net $top_supply_net
+#    }
+#    foreach_in_collection pd [get_power_domains -hier] {
+#        set supply_net [get_attribute $pd primary_power]
+#        set supply_net_name [get_object_name $supply_net]
+#        set top_supply_net $supply_net_name
+#        if {[info exists a_upf_supply_to_pg_net($supply_net_name)]} {
+#            set top_supply_net $a_upf_supply_to_pg_net($supply_net_name)
+#        }
+#        set_attribute $pd normalized_supply_net $top_supply_net
+#        set_attribute [get_voltage_areas -of $pd] normalized_supply_net $top_supply_net
+#    }
+#}
+#define_proc_attributes ::upf::normalize_supply_net_attribute \
+#    -info "Turn Partition into a bbox, keep UPF aspect at interface\n" \
+#    -command_group upf \
+#    -define_args {
+#    }
+#
+
+proc ::upf::apply_feedthru_srsn_mv_partitions {args} {
+
+    parse_proc_arguments -args $args opts
+    set check_types "driver_pin driver_port_is_not_feedthru driver_port_is_feedthru_location_based"
+    if {[info exists opts(-check_types)]} {
+        set check_types $opts(-check_types)
+    }
+
+    #--FOR PTL-P Disble VA based SRSN
+    #set check_types "driver_pin driver_port_is_not_feedthru"
+
+    commit_upf
+
+    upf::init_upf -quick
+
+    set terminal_to_va_gap 1.0
+
+
+    set par_pd_name [upf::params default_par_domain]
+    set par_pd [get_power_domains $par_pd_name]
+    set par_primary_power [get_object_name [get_attribute $par_pd primary_power]]
+    set v_srsn_file [upf::_get_flow_file_name -prefix "[upf::params env,design,name]_mvpar_feedthru_srsn" \
+            -suffix ".stcl"]
+
+    upf::_msg INFO "Derived SRSN file for feedthrus is $v_srsn_file"
+
+    array unset a_vapoly
+    foreach_in_collection pd [remove_from_collection [get_power_domains -hier] $par_pd] {
+        set pd_name [get_object_name $pd]
+        set a_vapoly($pd_name) [transform_polygons -objects [get_voltage_areas -of_objects $pd]]
+    }
+    array unset a_srsns
+    set output_ports [filter_collection [get_ports ] -regexp "direction==out && full_name!~[upf::params spine_upf_cells_rexp]"]
+    foreach_in_collection feedthru [filter_collection $output_ports "(full_name=~*FEEDTHRU* || full_name=~*OVERLAP*)" ] {
+        set feedthru_name [get_object_name $feedthru]
+        if {[info exists opts(-verbose)]} {
+            upf::_msg INFO "Finding SRSN for port $feedthru_name"
+        }
+        set driver [all_fanin -to [get_nets -quiet -of $feedthru] -flat -level 0]
+        set driver_pins [filter_collection $driver "object_class==pin && direction==out"]
+        set driver_ports [filter_collection -regexp $driver "object_class==port && direction==in && full_name!~[upf::params spine_upf_cells_rexp]"]
+        if {[sizeof_collection $driver_ports] > 1} {
+            upf::_msg ERROR "port $feedthru_name driver by multiple ports [get_object_name $driver_ports]"
+            set driver_ports [index_collection $driver_ports 0 ]
+        }
+
+        set is_mv_restriction 0 ; #TBD
+        if {($driver_pins != {}) && ([lsearch $check_types "driver_pin"] != -1)} {
+            #--two Cases
+                #--duplicated fanout of an existing fanout
+                #--not duplicated fanout of an existing fanout, but new port created like spine etc...
+                #--in new tool version sometimes MV_RESTRICTION are added if there is MV violation. (TBD)
+            set orig_port_name [regsub {(_FEEDTHRU_PIN_\d+)|((_OVERLAP)+)} $feedthru_name {}]
+            if {[get_ports -quiet $orig_port_name] != {}} {
+                set srsn [get_object_name [get_related_supply_net [get_ports -quiet $orig_port_name]]]
+                #upf::util_set_related_supply_net -object_list $feedthru_name  -power $srsn
+                if {$srsn != $par_primary_power} {
+                    set a_srsns($feedthru_name,srsn) $srsn
+                    set a_srsns($feedthru_name,comment) "#-Derived srsn of $srsn for port $feedthru_name based upon original RTL output port $orig_port_name"
+                }
+            } else {
+                #--in this case getting srsn from drive pin and propagating it
+                set srsn [get_attribute [get_related_supply_net $driver_pins] name ]
+                if {$srsn != $par_primary_power} {
+                    set a_srsns($feedthru_name,srsn) $srsn
+                    set a_srsns($feedthru_name,comment) "#-Derived srsn of $srsn for port $feedthru_name based upon driver [get_object_name $driver_pins]"
+                }
+            }
+        }
+        if {$driver_ports != {}} {
+            set driver_port_name [get_object_name $driver_ports]
+            if {([filter_collection $driver_ports "full_name!~*_FEEDTHRU*PIN* && full_name!~*_OVERLAP*"] != {}) && ([lsearch $check_types "driver_port_is_not_feedthru"] != -1)} {
+                #-input port is destination in RTL as well. Most probably tapped feedthru
+                #-- Driver based SRSN at input good, just propagate it
+                set srsn [get_object_name [get_related_supply_net $driver_ports]]
+                if {$srsn != $par_primary_power} {
+                    set a_srsns($feedthru_name,srsn) $srsn
+                    set a_srsns($feedthru_name,comment) "#-Derived srsn of $srsn for port $feedthru_name from driver port [get_object_name $driver_ports] , driver port srsn is from FE-UPF and $feedthru_name is tapped feedthru."
+                }
+            } elseif {[lsearch $check_types "driver_port_is_feedthru_location_based"] != -1} {
+                #--both driver port and load port are pure feedthru.
+                #-if Quantum is not providing feedthru, we just have to guess based upon where it is entering the partition
+                #--do placeemnt based check
+
+                redirect /dev/null {set routing_direction [get_attribute -quiet [get_attribute $driver_ports layer] routing_direction]}
+
+#get_attribute $driver_ports layer
+                set driver_port_poly [transform_polygons -objects $driver_ports ]
+                set srsn ""
+                foreach_in_collection pd [remove_from_collection [get_power_domains -hier] $par_pd] {
+                    set pd_name [get_object_name $pd]
+                    set vapoly $a_vapoly($pd_name)
+                    if {$routing_direction eq "horizontal"} {
+                        set vapoly [resize_polygons -objects $vapoly -size [list $terminal_to_va_gap 0.0]]
+                    } elseif {$routing_direction eq "vertical"} {
+                        set vapoly [resize_polygons -objects $vapoly -size [list 0.0 $terminal_to_va_gap ]]
+                    }
+                    set and_poly [compute_polygon -objects1 $driver_port_poly -objects2 $vapoly -operation AND]
+                    if {[get_attribute $and_poly is_empty] == "true"} {
+                        continue
+                    }
+                    set pd_srsn [get_attribute $pd primary_power]
+                    foreach_in_collection snet [get_supply_nets -of $par_pd] {
+                        if {[check_supply_equivalence [add_to_collection $pd_srsn $snet]]} {
+                            set srsn [get_object_name $snet]
+                            break
+                        }
+                    }
+                    if {$srsn != ""} {
+                        break
+                    }
+                }
+                if {$srsn == ""} {
+                    upf::_msg ERROR "not able to find srsn for port [get_object_name $driver_ports]"
+                }
+                if {$srsn != $par_primary_power} {
+                    set a_srsns($feedthru_name,srsn) $srsn
+                    set a_srsns($feedthru_name,comment) "#-Driver Port $driver_port_name has location in $srsn voltage area"
+                    set a_srsns($driver_port_name,srsn) $srsn
+                    set a_srsns($driver_port_name,comment) "#-Pure feedthru input port, enters $srsn VA."
+                }
+            }
+        }
+    }
+    if {[array size a_srsns]} {
+        set fp [open $v_srsn_file w]
+        foreach key [array names a_srsns *,srsn] {
+            regexp {(.*),srsn} $key match port_name
+            puts $fp "$a_srsns($port_name,comment)"
+            puts $fp "upf::util_set_related_supply_net -object_list $port_name -power $a_srsns($port_name,srsn)"
+            puts $fp ""
+        }
+        close $fp
+        if {![info exists opts(-skip_sourcing_srsn)]} {
+            source $v_srsn_file
+        }
+    } else {
+        upf::_msg INFO "No need of srsn file."
+    }
+    if {[info exists opts(-commit)]} {
+        commit_upf
+    }
+}
+define_proc_attributes ::upf::apply_feedthru_srsn_mv_partitions \
+    -info ".\n" \
+    -command_group upf \
+    -define_args {
+      {-check_types "Load Design Specific Params" "" string optional}
+      {-skip_sourcing_srsn "Load Design Specific Params" "" boolean optional}
+      {-verbose "Load Design Specific Params" "" boolean optional}
+      {-commit "Load Design Specific Params" "" boolean optional}
+    }
+
+
+if {0} {
+
+
+    set trial_x 131
+    pg::suggest_n3e_array_pfet_params -column -trial_x $trial_x
+
+    set trial_y 309.6535
+    pg::suggest_n3e_array_pfet_params -row -trial_y $trial_y
+
+    remove_attribute [current_design ] active_psi_strategies
+    unset -nocomplain pg::params(ps_insertion_strategy,arrayVerticalLS,boundary)
+    unset -nocomplain pg::params(ps_insertion_strategy,arrayHorLS,boundary)
+    pg::params active_psi_strategies porb00
+    set pg::params(ps_insertion_strategy,arrayVerticalLS,boundary) {{128.544 0.0845} {131.04 543.3155}}
+    pg::init_pg
+
+    remove_attribute [current_design ] active_psi_strategies
+    unset -nocomplain pg::params(ps_insertion_strategy,arrayVerticalLS,boundary)
+    unset -nocomplain pg::params(ps_insertion_strategy,arrayHorLS,boundary)
+    pg::params active_psi_strategies porb00
+    set pg::params(ps_insertion_strategy,arrayHorLS,boundary) {{0.576 308.5095} {311.28 309.0815}}
+    pg::init_pg
+
+    redirect -tee insertCol.log {
+        pg::insert_ps_cells -enable_strategy_phases "initial_insertion" -no_ps_power_route
+    }
+
+    remove_cells [get_flat_cells -filter "name=~pfet_*"]
+}
+
+proc ::pg::suggest_n3e_array_pfet_params {args} {
+    parse_proc_arguments -args $args opts
+
+    scan [join [get_attribute [get_core_area ] bbox]] "%f %f %f %f" core_llx core_lly core_urx core_ury
+    set tap_width 0.4800
+    set por_str porb00
+    pg::init_pg
+    set pfet_width [get_attribute [get_lib_cells */$pg::params(ps_insertion_strategy,$por_str,libcell)] width]
+    set pfet_height [get_attribute [get_lib_cells */$pg::params(ps_insertion_strategy,$por_str,libcell)] height]
+
+    if {[info exists opts(-column)]} {
+        set str arrayVerticalLS
+        foreach required_ops {trial_x } {
+            if {![info exists opts(-${required_ops})]} {
+                pg::_msg ERROR "option -${required_ops} must be specified for column type pfet column parameters exploration."
+                return
+            }
+        }
+        set trial_x $opts(-trial_x)
+
+        set lly $core_lly
+        if {[info exists opts(-lly)]} {
+            set lly $opts(-lly)
+        }
+        set ury $core_ury
+        if {[info exists opts(-ury)]} {
+            set ury $opts(-ury)
+        }
+
+        set x_offset [lindex $pg::params(ps_strategy_default_setting,array,offset) 0]
+        set x_pitch [lindex $pg::params(ps_strategy_default_setting,array,pitch) 0]
+
+        if {[info exists pg::params(ps_insertion_strategy,$str,offset)]} {
+            set x_offset [lindex $pg::params(ps_insertion_strategy,$str,offset) 0]
+        }
+        if {[info exists pg::params(ps_insertion_strategy,$str,pitch)]} {
+            set x_pitch [lindex $pg::params(ps_insertion_strategy,$str,pitch) 0]
+        }
+
+
+        set x_number [expr int(floor(($trial_x-$x_offset)/$x_pitch))]
+        set pfet_llx [expr $x_number*$x_pitch+$x_offset]
+
+        set bbox_llx $pfet_llx
+        set bbox_urx [expr $pfet_llx + $pfet_width]
+
+        set pfet_tap_bbox_llx [expr $pfet_llx - $tap_width]
+        set pfet_tap_bbox_urx [expr $pfet_llx + $pfet_width + $tap_width]
+
+        set pfet_bbox [list [list $bbox_llx $lly] [list $bbox_urx $ury]]
+
+        set pfet_tap_bbox [list [list $pfet_tap_bbox_llx $lly] [list $pfet_tap_bbox_urx $ury]]
+
+        set bbox_tap_cells [get_cells -quiet -within $pfet_tap_bbox]
+        append_to_collection bbox_tap_cells [get_cells -quiet -intersect $pfet_tap_bbox]
+
+        set bbox_tap_cells [library::filter_objects $bbox_tap_cells "library.cell.function==tap"]
+
+        if {$bbox_tap_cells != {}} {
+            pg::_msg ERROR "given box intersects with tap cells [get_object_name $bbox_tap_cells]. Please make sure final pfet inserted don't have tap issue"
+        }
+        echo "set pg::params(ps_insertion_strategy,arrayVerticalLS,boundary) {$pfet_bbox}"
+        echo "or use following if strategies has previously bbox defined"
+        echo "lappend pg::params(ps_insertion_strategy,arrayVerticalLS,boundary) {$pfet_bbox}"
+        echo ""
+        echo "check for pfet column box : \"gui_add_annotation {$pfet_bbox} -color blue\""
+        echo "check for pfet with tap column box: \"gui_add_annotation {$pfet_tap_bbox} -color red\""
+
+    } elseif {[info exists opts(-row)]} {
+        set str arrayHorLS
+        foreach required_ops {trial_y } {
+            if {![info exists opts(-${required_ops})]} {
+                pg::_msg ERROR "option -${required_ops} must be specified for row type pfet column parameters exploration."
+                return
+            }
+        }
+        set trial_y $opts(-trial_y)
+
+        set llx $core_llx
+        if {[info exists opts(-llx)]} {
+            set llx $opts(-llx)
+        }
+        set urx $core_urx
+        if {[info exists opts(-urx)]} {
+            set urx $opts(-urx)
+        }
+        set y_offset [lindex $pg::params(ps_strategy_default_setting,array,offset) 1]
+        set y_pitch [lindex $pg::params(ps_strategy_default_setting,array,pitch) 1]
+
+        if {[info exists pg::params(ps_insertion_strategy,$str,offset)]} {
+            set y_offset [lindex $pg::params(ps_insertion_strategy,$str,offset) 1]
+        }
+        if {[info exists pg::params(ps_insertion_strategy,$str,pitch)]} {
+            set y_pitch [lindex $pg::params(ps_insertion_strategy,$str,pitch) 1]
+        }
+
+        set y_number [expr int(floor(($trial_y-$y_offset)/$y_pitch))]
+        set pfet_lly [expr $y_number*$y_pitch+$y_offset]
+
+        set bbox_lly [expr $pfet_lly ]
+        set bbox_ury [expr $pfet_lly + $pfet_height ]
+
+        set pfet_bbox [list [list $llx $bbox_lly] [list $urx $bbox_ury]]
+        echo "set pg::params(ps_insertion_strategy,arrayHorLS,boundary) {$pfet_bbox}"
+        echo "check for pfet row box : \"gui_add_annotation {$pfet_bbox} -color blue\""
+    } else {
+        pg::_msg ERROR "Plesae either pick -row or -column"
+    }
+
+}
+define_proc_attributes ::pg::suggest_n3e_array_pfet_params \
+    -info "Temporally adds or removes blockings before or after power switch insertion" \
+    -command_group pg \
+    -define_args {
+        {-column "output file name" "" boolean optional}
+        {-trial_x "output file name" "" string optional}
+        {-lly "output file name" "" string optional}
+        {-ury "output file name" "" string optional}
+        {-row "output file name" "" boolean optional}
+        {-trial_y "output file name" "" string optional}
+        {-llx "output file name" "" string optional}
+        {-urx "output file name" "" string optional}
+    }
+
+
+
+#
+if {0} {
+upf::pass_mw_signal_through_domain -nets d2d_ggts_d2d_ggts_Sleep_c2g -power_domain_primary VCC_INF_UG -buffer_type nonclock_nonsir
+
+array unset opts
+set opts(-nets) [get_nets d2d_ggts_d2d_ggts_Sleep_c2g ]
+set opts(-power_domain_primary) VCC_INF_UG
+set opts(-buffer_type) nonclock_nonsir
+
+
+}
+
+
+
+#
+# n3e clamp to 1 ELS as silicon issue,
+# as work around swap to clamp to 0 and invert on all pins
+# for ungfxpar2 case, enable inv to be aon buffer, output inv to be nonaon both pdoi to desnt domain
+# for ungfxpar1 only one such case. enable inv to be regular buffer, output inv to be nonaon both pdoi inan VNNAON domain, destination of els is port with VNNAON SRSN
+
+proc ::upf::n3e_source_clamp_to_1_fix {args} {
+    parse_proc_arguments -args $args opts
+
+    set method "clamp_to_0"
+    if {[info exists opts(-method)]} {
+        set method $opts(-method)
+    }
+    upf::normalize_supply_net_attribute -force 
+
+    #-- HARDCODED FOR DESIGN UNGFXPAR1
+    set design [get_object_name [get_attribute [current_design] design]]
+
+
+
+    set src_els1_ref_name "LVLLHCHSRCCWBALD4BWP143M286H3P48CPDULVTLL"
+
+    set dstn_els1_ref_name  "CKLVLLHCHSNKCWWDRITLD4BWP143M286H3P48CPDULVTLL"
+    set src_els0_ref_name "LVLLHCLSRCCWWDRITLD4BWP143M286H3P48CPDULVTLL"
+    set aon_inv_ref_name "PTCKNHDCWITLD4BWP143M286H3P48CPDLVT"
+    set nonaon_inv_ref_name "INVD1BWP143M169H3P48CPDLVT"
+
+    set src_els1_cells [filter_collection [get_flat_cells ] "ref_name==$src_els1_ref_name"]
+    if {$src_els1_cells eq ""} {return}
+    set src_en1 [get_attribute [get_lib_pins */$src_els1_ref_name/* -filter "direction==in && level_shifter_enable_pin == true"] name]
+    set src_d1 [get_attribute [get_lib_pins */$src_els1_ref_name/* -filter "direction==in && name!=$src_en1"] name]
+    set src_o1 [get_attribute [get_lib_pins */$src_els1_ref_name/* -filter "direction==out"] name]
+
+    set src_en0 [get_attribute [get_lib_pins */$src_els0_ref_name/* -filter "direction==in && level_shifter_enable_pin == true"] name]
+    set src_d0 [get_attribute [get_lib_pins */$src_els0_ref_name/* -filter "direction==in && name!=$src_en0"] name]
+    set src_o0 [get_attribute [get_lib_pins */$src_els0_ref_name/* -filter "direction==out"] name]
+
+    set dstn_en1 [get_attribute [get_lib_pins */$dstn_els1_ref_name/* -filter "direction==in && level_shifter_enable_pin == true"] name]
+    set dstn_d1 [get_attribute [get_lib_pins */$dstn_els1_ref_name/* -filter "direction==in && name!=$dstn_en1"] name]
+    set dstn_o1 [get_attribute [get_lib_pins */$dstn_els1_ref_name/* -filter "direction==out"] name]
+
+    if {$method eq "destination"} {
+        #--convert to destination type if output supply exist as VA primary close by
+        
+    } elseif {$method eq "clamp_to_0"} {
+        set src_els1_cells_names [get_object_name $src_els1_cells]
+        upf::_msg INFO "Swapping [llength $src_els1_cells_names] clamp to 1 level shifters to clamp to 0 type."
+        array unset a_ls_csns
+        #array unset ls_out_supply
+        #array unset ls_dest_supply
+        foreach_in_collection ls $src_els1_cells {
+            set ls_name [get_object_name $ls]
+            foreach_in_collection ls_pg_pin [get_pins -all -of $ls -filter "port_type==power"] {
+                set ls_pg_pin_name [get_object_name $ls_pg_pin]
+                set ls_pg_csn [get_object_name [get_supply_nets -of $ls_pg_pin]]
+                if {![info exists a_ls_csns($ls_pg_csn)]} {
+                    set a_ls_csns($ls_pg_csn) ""
+                }
+                lappend a_ls_csns($ls_pg_csn) $ls_pg_pin_name
+
+
+            }
+            #--for runtime storing this information
+            set ls_out_pin [get_pins -of $ls -filter "direction==out"]
+            set isolated_pin [remove_from_collection [get_pins -of [get_nets -of $ls_out_pin] -filter "is_hierarchical"] $ls_out_pin]
+            upf::_msg INFO "Swapping $ls_name to clamp to 0 pin to be isolated [get_object_name $isolated_pin]"
+
+            #set ls_loads [all_fanout -from [get_nets -of $ls_out_pin] -flat -level 0]
+            #set ls_out_supply [get_attribute [get_related_supply_net $ls_out_pin] normalized_supply_net]
+            #set destination_supply [lsort -unique [get_attribute [get_related_supply_net $ls_loads] normalized_supply_net]]
+            #set ls_out_supply($ls_name) $ls_out_supply
+            #set ls_dest_supply($ls_name) $destination_supply
+
+        }
+
+
+
+        foreach ls_name $src_els1_cells_names {
+            util::custom_set_reference -cells [get_cells $ls_name] -newref $src_els0_ref_name -pinmap [list $src_en1 $src_en0 $src_d1 $src_d0 $src_o1 $src_o0]
+        }
+        foreach ls_pg_csn [array names a_ls_csns] {
+            connect_supply_net $ls_pg_csn -ports $a_ls_csns($ls_pg_csn)
+        }
+        commit_upf
+        set src_els1_cells [get_cells $src_els1_cells_names]
+        set count 0
+
+
+        foreach_in_collection ls $src_els1_cells {
+            set ls_name [get_object_name $ls]
+            upf::_msg INFO "Creating data inverter for $ls_name"
+            set parent_cell [get_object_name [get_attribute $ls parent_cell]]
+            if {$parent_cell ne ""} {set parent_cell "${parent_cell}/"}
+            set new_d_inv_name "${parent_cell}src_els10_swap_d_inv_${count}"
+            create_cell $new_d_inv_name $nonaon_inv_ref_name
+            set new_d_inv [get_cells $new_d_inv_name]
+            connect_net [get_nets -of [get_pins -of $ls -filter "name==$src_d0"]] [get_pins -of $new_d_inv -filter "direction==in"]
+            disconnect_net [get_nets -of [get_pins -of $ls -filter "name==$src_d0"]] [get_pins -of $ls -filter "name==$src_d0"]
+            connect_pin -driver [get_pins -of $new_d_inv -filter "direction==out"] [get_pins -of $ls -filter "name==$src_d0"]
+            incr count
+        }
+        set count 0
+
+        #--inverter on enable not needed, existing cell is not pure OR, it can be assumed it is OR with one extra inverter in enable inside standardcell
+
+#        set enable_inverters ""
+#        array unset a_inverter_to_load
+#        foreach_in_collection ls $src_els1_cells {
+#            set ls_name [get_object_name $ls]
+#            upf::_msg INFO "Creating enable inverter for $ls_name"
+#            set parent_cell [get_object_name [get_attribute $ls parent_cell]]
+#            if {$parent_cell ne ""} {set parent_cell "${parent_cell}/"}
+#            set new_en_inv_name "${parent_cell}SRC_ELS10_SWAP_EN_INV_${count}"
+#            if {$design eq "ungfxpar1"} {
+#                create_cell $new_en_inv_name $nonaon_inv_ref_name
+#            } else {
+#                create_cell $new_en_inv_name $aon_inv_ref_name
+#            }
+#            set new_en_inv [get_cells $new_en_inv_name]
+#            append_to_collection enable_inverters $new_en_inv
+#            connect_net [get_nets -of [get_pins -of $ls -filter "name==$src_en0"]] [get_pins -of $new_en_inv -filter "direction==in"]
+#            disconnect_net [get_nets -of [get_pins -of $ls -filter "name==$src_en0"]] [get_pins -of $ls -filter "name==$src_en0"]
+#            connect_pin -driver [get_pins -of $new_en_inv -filter "direction==out"] [get_pins -of $ls -filter "name==$src_en0"]
+#            incr count
+#            set a_inverter_to_load($new_en_inv_name) [get_pins -of $ls -filter "name==$src_en0"]
+#        }
+#        #--remove redudnant paralell inverters
+#        array unset original_en_driver_to_new_inverters
+#        foreach_in_collection enable_inverter $enable_inverters {
+#            set driver [get_object_name [all_fanin -to [get_nets -of [get_pins -of $enable_inverter -filter "direction==in"]] -flat -level 0]]
+#            if {![info exists original_en_driver_to_new_inverters($driver)]} {
+#                set original_en_driver_to_new_inverters($driver) ""
+#            } 
+#            append_to_collection original_en_driver_to_new_inverters($driver) $enable_inverter
+#        }
+#
+#        set remove_extra_inverters ""
+#        foreach driver [array names original_en_driver_to_new_inverters] {
+#            set first_inverter [index_collection $original_en_driver_to_new_inverters($driver) 0]
+#            set remaining_inverters [remove_from_collection $original_en_driver_to_new_inverters($driver) $first_inverter]
+#            
+#            foreach_in_collection inverter $remaining_inverters {
+#                set inverter_name [get_object_name $inverter]
+#                set merged_iso_en_pin $a_inverter_to_load($inverter_name)
+#                disconnect_net [get_nets -of $merged_iso_en_pin] $merged_iso_en_pin
+#                connect_pin -driver [get_pins -of $first_inverter -filter "direction==out"] $merged_iso_en_pin
+#            }
+#            append_to_collection remove_extra_inverters $remaining_inverters
+#        }
+#        if {$remove_extra_inverters ne ""} {
+#            remove_cells $remove_extra_inverters
+#        }
+
+        set dont_touch_nets ""
+        set count 0
+        foreach_in_collection ls $src_els1_cells {
+            set ls_name [get_object_name $ls]
+            upf::_msg INFO "Finding dont touch nets for nets of $ls_name"
+
+            set parent_cell [get_object_name [get_attribute $ls parent_cell]]
+            if {$parent_cell ne ""} {set parent_cell "${parent_cell}/"}
+            set ls_out [get_pins -of $ls -filter "direction==out"]
+            set new_out_inv_name "${parent_cell}src_els10_swap_out_inv_${count}"
+            create_cell $new_out_inv_name $nonaon_inv_ref_name
+            set new_out_inv [get_cells $new_out_inv_name]
+            set ls_out_net [get_nets -of $ls_out]
+            disconnect_net $ls_out_net $ls_out
+            connect_net $ls_out_net [get_pins -of $new_out_inv -filter "direction==out"]
+            connect_pin -driver $ls_out [get_pins -of $new_out_inv -filter "direction==in"]
+            incr count
+            append_to_collection dont_touch_nets [get_nets -of [get_pins -of $new_out_inv ]]
+        }
+        if {![info exists opts(-skip_dont_touch)]} {
+            set_dont_touch $dont_touch_nets
+        }
+
+        array unset a_en_pdoi_info
+        array unset a_out_pdoi_info
+        foreach_in_collection ls $src_els1_cells {
+            set ls_name [get_object_name $ls]
+            upf::_msg INFO "Finding data structure for PDOI of new enable and output inverter for $ls_name"
+            set ls_en [get_pins -of $ls -filter "name==$src_en0"]
+            set ls_out [get_pins -of $ls -filter "direction==out"]
+            set ls_en_supply [get_object_name [get_related_supply_net $ls_en]]
+
+            #set en_inv_driver [filter_collection [all_fanin -to [get_nets -of $ls_en] -flat -level 0 -only] "full_name=~*SRC_ELS10_SWAP_EN_INV*"]
+            set en_supply [get_attribute [get_related_supply_net $ls_en] normalized_supply_net]
+            #--output PDOI
+            set out_inv [filter_collection [all_fanout -from [get_nets -of $ls_out] -flat -level 0 -only] "full_name=~*src_els10_swap_out_inv*"]
+            set inv_all_loads [all_fanout -from [get_nets -of [get_pins -of $out_inv -filter "direction==out"]] -flat -level 0 ]
+
+            set inv_loads_cells [get_cells -quiet -of [filter_collection $inv_all_loads "object_class==pin"] ]
+            set inv_loads_ports [filter_collection $inv_all_loads "object_class==port"]
+
+            if {$inv_loads_cells eq ""} {
+                set isol_destination_primary [lsort -unique [get_attribute [get_related_supply_net $inv_loads_ports] normalized_supply_net]]
+            } else {
+                set isol_destination_primary [get_attribute [get_power_domains -of $inv_loads_cells] normalized_primary_power]
+            }
+
+            set isol_output_supply [get_attribute [get_related_supply_net $ls_out] normalized_supply_net]
+
+            if {$design eq "ungfxpar1"} {
+                #--ungfxpar1, find VA where 
+                set pdoi_domain [get_object_name [filter_collection [get_power_domains *$upf::params(sd_pd_names,assign)*] "normalized_primary_power==$isol_output_supply"]]
+            } else {
+                #--there is bug in desing in sd0p8 one ELS in INF_GT has load in INF_GT and then in D2D, need to filter that out
+                #set pdoi_domain [get_object_name [filter_collection [get_power_domains *$upf::params(sd_pd_names,assign)*] "normalized_primary_power==$isol_destination_primary"]]
+
+                if {$en_supply eq "VNNAON"} {
+                    set pdoi_domain [get_object_name [filter_collection [get_power_domains *$upf::params(sd_pd_names,assign)*] "normalized_primary_power==VCC_D2D_CFI"]]
+                } else {
+                    set pdoi_domain [get_object_name [filter_collection [get_power_domains *$upf::params(sd_pd_names,assign)*] "normalized_primary_power==VCC_INF_GT"]]
+                }
+            }
+            #--No inverter needed on enable
+            #if {![info exists a_en_pdoi_info($pdoi_domain,$en_supply)]} {
+            #    set a_en_pdoi_info($pdoi_domain,$en_supply) ""
+            #}
+            #append_to_collection a_en_pdoi_info($pdoi_domain,$en_supply) $en_inv_driver -unique
+            if {![info exists a_out_pdoi_info($pdoi_domain)]} {
+                set a_out_pdoi_info($pdoi_domain) ""
+            }
+            append_to_collection a_out_pdoi_info($pdoi_domain) $out_inv -unique
+        }
+
+        #foreach key [array names a_en_pdoi_info] {
+        #    regexp {(.*),(.*)} $key match pdoi_domain en_supply
+        #    create_power_domain $pdoi_domain -elements $a_en_pdoi_info($key) -update 
+        #    if {$design ne "ungfxpar1"} {
+        #        connect_supply_net $en_supply -ports [get_pins -all -of $a_en_pdoi_info($key) -filter "port_type==power && pg_type==backup"]
+        #    }
+        #}
+        foreach key [array names a_out_pdoi_info] {
+            create_power_domain $pdoi_domain -elements $a_out_pdoi_info($key) -update 
+        }
+        commit_upf
+
+
+    }
+}
+define_proc_attributes ::upf::n3e_source_clamp_to_1_fix \
+   -info "Apply icc ecos.\n" \
+   -command_group upf \
+   -define_args {
+      {-method "Load Design Specific Params" "" string optional}
+      {-skip_dont_touch "Load Design Specific Params" "" boolean optional}
+   }
+
+
+
+
+
+
+
+proc ::upf::pass_mw_signal_through_domain {args} {
+    parse_proc_arguments -args $args opts
+
+    upf::init_upf -quick
+    upf::normalize_supply_net_attribute -force
+    set nets [get_nets -quiet $opts(-nets)]
+    if {$nets eq ""} {return}
+    set ref_name ""
+    if {[info exists opts(-buffer_type)]} {
+        set buffer_type $opts(-buffer_type)
+        if {[regexp {nonclock.*nonsir} $buffer_type]} {
+            set key "mv_component,nonclock,bufinv"
+            set ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params($key)] "library.cell.function==buf"] 0] name]
+        } elseif {[regexp {nonclock.*sir.*merged} $buffer_type]} {
+            set key "mv_component,nonclock,aon"
+            set ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params($key)] "library.cell.function==buf && library.cell.class=~sir*merged*"] 0] name]
+        } elseif {[regexp {nonclock.*sir.*insulated} $buffer_type]} {
+            set key "mv_component,nonclock,aon"
+            set ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params($key)] "library.cell.function==buf && library.cell.class=~sir*insulated*"] 0] name]
+        } elseif {[regexp {clock.*nonsir} $buffer_type]} {
+            set key "NOTDEFINED"
+        } elseif {[regexp {clock.*sir.*merged} $buffer_type]} {
+            set key "mv_component,clock,aon"
+            set ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params($key)] "library.cell.function==buf && library.cell.class=~sir*merged*"] 0] name]
+        } elseif {[regexp {clock.*sir.*insulated} $buffer_type]} {
+            set key "mv_component,clock,aon"
+            set ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params($key)] "library.cell.function==buf && library.cell.class=~sir*insulated*"] 0] name]
+        }
+    } elseif {[info exists opts(-buffer_ref_name)]} {
+        set ref_name $opts(-buffer_ref_name)
+    }
+    set input_port_suffix DOMAIN_ASSIGN_INPUT
+    set output_port_suffix DOMAIN_ASSIGN_OUTPUT
+    if {[info exists opts(-input_port_suffix)]} {
+        set input_port_suffix $opts(-input_port_suffix)
+    }
+    if {[info exists opts(-output_port_suffix)]} {
+        set output_port_suffix $opts(-output_port_suffix)
+    }
+
+    set temp_anchor_ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params(mv_component,nonclock,bufinv)] "library.cell.function==buf"] 0] name]
+
+    set assign_anchor_ref_name $temp_anchor_ref_name
+    if {$ref_name != {}} {
+        set assign_anchor_ref_name $ref_name
+    }
+    set buffer_supply_name ""
+    if {[info exists opts(-buffer_supply)]} {
+        set buffer_supply_name [get_attribute [get_supply_nets $opts(-buffer_supply)] normalized_supply_net]
+    }
+    if {[info exists opts(-power_domain)]} {
+        set power_domain [get_power_domains $opts(-power_domain)]
+        set feedthru_hierarchy [lindex [get_object_name [filter_collection [get_attribute $power_domain elements] "object_class==cell && is_hierarchical==true"]] 0]
+
+    } elseif {[info exists opts(-power_domain_primary)]} {
+        set supply_net_name [get_attribute [get_supply_nets $opts(-power_domain_primary)] normalized_supply_net]
+        set power_domain [get_power_domains -hierarchical -filter "normalized_primary_power==$supply_net_name"]
+        set feedthru_hierarchy [lindex [get_object_name [filter_collection [get_attribute $power_domain elements] "object_class==cell && is_hierarchical==true"]] 0]
+    } elseif {[info exists opts(-feedthru_hierarchy)]} {
+        set feedthru_hierarchy [get_object_name [get_cells -quiet $opts(feedthru_hierarchy)]]
+    }
+    if {$feedthru_hierarchy eq ""} {
+        upf::_msg ERROR "Unable to find domain hierarchy to pass signal through."
+        return
+        #--Error
+    }
+    set num 0
+    set net_anchors ""
+    set temp_anchors ""
+    set assign_buffers ""
+    foreach_in_collection net [get_nets $opts(-nets)] {
+        #--add two temp buffers to make assign easier
+        set net_name [get_attribute $net name]
+        set fanouts [all_fanout -from $net -flat -level 0]
+        if {[info exist opts(-select_load_srsns)]} {
+            set assign_through_loads ""
+            set select_load_srsns [get_attribute [get_supply_nets $opts(-select_load_srsns)] normalized_supply_net]
+            foreach select_load_srsn $select_load_srsns {
+                append_to_collection assign_through_loads [filter_collection $fanouts "UPF_related_supply_set.power_supply_net.normalized_supply_net==$select_load_srsn"]
+            }
+            set skip_assign_through_loads [remove_from_collection $fanouts $assign_through_loads]
+        } else {
+            set assign_through_loads $fanouts
+            set skip_assign_through_loads ""
+        }
+        if {$assign_through_loads eq ""} {
+            continue
+        }
+        set first_buffer [add_buffer -new_cell_names temp_anchor_cell -new_net_names temp_anchor_net -lib_cell $temp_anchor_ref_name $net]
+        set second_buffer [add_buffer -new_cell_names temp_anchor_cell -new_net_names temp_anchor_net -lib_cell $temp_anchor_ref_name [get_pins -of $first_buffer -filter "direction==out"]]
+        set assign_buffer [create_cell $feedthru_hierarchy/${net_name}_${num} $assign_anchor_ref_name   ]
+        append_to_collection assign_buffers $assign_buffer
+        #--if majorty to go through assign unit.
+            #-current approach
+
+        #--if maojoryt not to go through assign unit.
+            #-
+        if {[sizeof_collection $assign_through_loads] >= [sizeof_collection $skip_assign_through_loads]} {
+            remove_net [get_nets -of [get_pins -of $first_buffer -filter "direction==out"]]
+            connect_pin -driver [get_pins -of $first_buffer -filter "direction==out"] [get_pins -of $assign_buffer -filter "direction==in"] -port_name ${net_name}_${input_port_suffix}
+            connect_pin -driver [get_pins -of $assign_buffer -filter "direction==out"] [get_pins -of $second_buffer -filter "direction==in"] -port_name ${net_name}_${output_port_suffix}
+            #--connect those not to be skipped back to original driver
+            foreach_in_collection skip_load $skip_assign_through_loads {
+                disconnect_net [get_nets -of $skip_load] $skip_load
+                connect_pin -driver [get_pins -of $first_buffer -filter "direction==out"] $skip_load -port_name ${net_name}_SKIP_ASSIGN
+            }
+        } else {
+            connect_pin -driver [get_pins -of $first_buffer -filter "direction==out"] [get_pins -of $assign_buffer -filter "direction==in"] -port_name ${net_name}_${input_port_suffix}
+            foreach assign_load $assign_through_loads {
+                disconnect_net [get_nets -of $assign_load] $assign_load
+                connect_pin -driver [get_pins -of $assign_buffer -filter "direction==out"] $assign_load -port_name ${net_name}_ASSIGN_MW_CONNECTION
+            }
+        }
+
+        append_to_collection temp_anchors $first_buffer
+        append_to_collection temp_anchors $second_buffer
+        append_to_collection net_anchors $assign_buffer
+    }
+    if {$temp_anchors != {}} {
+        remove_buffers $temp_anchors
+    }
+    set buffers_backup_pins [get_pins -all -quiet -of $assign_buffers -filter "port_type==power && pg_type==backup"]
+
+    set commit 0
+    if {$assign_buffers ne ""} {
+        if {$ref_name == {}} {
+            remove_buffers $assign_buffers
+        } else {
+            if {($buffer_supply_name != {}) && ($buffers_backup_pins != {})} {
+                connect_supply_net $buffer_supply_name -ports $buffers_backup_pins
+                set commit 1
+            }
+        }
+    }
+    if {$commit} {commit_upf}
+}
+define_proc_attributes ::upf::pass_mw_signal_through_domain \
+    -info "Take signal throgh domain to have LS inserted" \
+    -command_group upf \
+    -define_args {
+        {-nets "Net names to be taken through another domain" "" string required}
+        {-power_domain "power domain through which nets to be taken" "" string optional}
+        {-power_domain_primary "find feedthru power domain that is having this power as primary supply" "" string optional}
+        {-feedthru_hierarchy "consider this hierarchy to take nets as feedthru" "" string optional}
+        {-buffer_type "buffer type" "" string optional}
+        {-buffer_ref_name "buffer ref-name" "" string optional}
+        {-buffer_supply "suply of buffer if sir type" "" string optional}
+        {-input_port_suffix "suffix of new input pins at domain unit" "" string optional}
+        {-output_port_suffix "suffix of new output pins at domain unit" "" string optional}
+        {-select_load_srsns "create by pass only for loads belong to this spa" "" string optional}
+    }
+
+
+if {0} {
+upf::remove_ls_iso_cells -cells c2c/c2c_sleep_UPF_LS -use_custom_swap
+}
+
+proc ::upf::remove_ls_iso_cells {args} {
+    parse_proc_arguments -args $args opts
+    set temp_anchor_ref_name [get_attribute [index_collection [library::filter_objects [get_lib_cells $upf::params(mv_component,nonclock,bufinv)] "library.cell.function==buf"] 0] name]
+
+    set buf_in [get_attribute [get_lib_pins */$temp_anchor_ref_name/* -filter "direction==in"] name]
+    set buf_out [get_attribute [get_lib_pins */$temp_anchor_ref_name/* -filter "direction==out"] name]
+
+    set cells [get_cells $opts(-cells) -filter "is_level_shifter==true || is_isolation==true"]
+    set wrong_cells [remove_from_collection [get_cells $opts(-cells)] $cells]
+
+    if {$wrong_cells != {}} {
+        upf::_msg ERROR "Count of Non-isol/Non-LS [sizeof_collection $wrong_cells]. These will be ignored for removal." 
+    }
+    set cells_names [get_object_name $cells]
+    foreach_in_collection cell $cells {
+        set mw_ref [get_attribute $cell ref_name]
+        set mw_in [get_attribute [get_lib_pins */$mw_ref/* -filter "direction==in && is_isolation_cell_enable_pin!=true && level_shifter_enable_pin!=true"] name]
+        set mw_out [get_attribute [get_lib_pins */$mw_ref/* -filter "direction==out"] name]
+
+        set pinmap [list $mw_in $buf_in $mw_out $buf_out]
+
+        if {[info exists opts(-use_custom_swap)]} {
+            util::custom_set_reference -cells [get_object_name $cell]  -newref $temp_anchor_ref_name -pinmap  $pinmap
+        } else {
+            set_reference -to_block [library::find_cell $temp_anchor_ref_name] $cell -pin_map $pinmap -pin_rebind force
+        }
+    }
+    set cells [get_cells $cells_names]
+    if {$cells != {}} {
+        remove_buffers $cells
+    }
+}
+define_proc_attributes ::upf::remove_ls_iso_cells \
+    -info "remove level shifter or iso" \
+    -command_group upf \
+    -define_args {
+        {-cells "MW cell to be removed" "" string required}
+        {-use_custom_swap "MW cell to be removed" "" boolean optional}
+    }   
+
+
+
+
+#--if same enable has load in with diff srsn && these cells sit in same domain, could be problem of hetero
+#--if any load pin srsn is suppl ythat odesn thave domain like VCCSA, only way to LS is to take it to output boundary to have source LS added
+
+#if {0} {
+    #smaple reprort
+#    CFIPwrgood VNNAON "VNNAON"
+#    supply_load_vs_domain     VNNAON:pd_VCC_D2D_CFI_ungfxpar2_pd
+#
+#    c2c/d2d_powergood VNNAON "VCC_INF_GT VNNAON"
+#    supply_load_vs_domain     VCC_INF_GT:c2c/pd_gc2c VNNAON:c2c/pd_d2d_pm
+#
+#    c2c/powergood VNNAON "VCC_D2D_CFI VNNAON"
+#    supply_load_vs_domain     VCC_D2D_CFI:c2c/pd_gd2d VNNAON:c2c/pd_d2d_pm
+#
+#    d2d_ggts_Powergood_gated_c2g VNNAON "VCCSA VNNAON"  ; #<_-problem
+#    supply_load_vs_domain     VCCSA:c2c/pd_c2c_top VNNAON:c2c/pd_c2c_top           problem diffload same domain, may cuase conflit how to do LS
+#
+#    ungfxpar2_vccst/dpma_vcc_inf_com_isolation_en_b VNNAON "VCCST VCC_INF_GT VNNAON"
+#    supply_load_vs_domain     VCCST:pd_VCCST_ungfxpar2_pd VCC_INF_GT:c2c/pd_c2c_top VNNAON:pd_VCC_INF_COM_ungfxpar2_pd pd_VNNAON_ungfxpar2_pd
+#
+#    ungfxpar2_vccst/dpma_vcc_st_isolation_en_b VNNAON "VNNAON"
+#    supply_load_vs_domain     VNNAON:pd_VCCST_ungfxpar2_pd
+#}
+proc ::upf::generate_iso_enable_hetro_report {args} {
+    parse_proc_arguments -args $args opts
+
+    upf::normalize_supply_net_attribute -force
+
+    set strategies [get_power_strategies -filter "type==ISO"]
+
+    set isolation_signals [lsort -unique [get_object_name [get_attribute $strategies isolation_signal]]]
+
+    foreach isolation_signal $isolation_signals {
+        set enable_driver [all_fanin -to [get_nets -of $isolation_signal] -flat -level 0]
+        set enable_driver_srsn [get_attribute [get_related_supply_nets $enable_driver] normalized_supply_net]
+        set signal_related_strategies [filter_collection $strategies "isolation_signal.full_name==$isolation_signal"]
+        set strategies_cells_en_pins [get_pins -of [get_cells -of $signal_related_strategies] -filter "(lib_pin.is_isolation_cell_enable_pin==true || lib_pin.level_shifter_enable_pin==true)"]
+        set strategies_en_pins_srsns [lsort -unique [get_attribute [get_related_supply_nets $strategies_cells_en_pins] normalized_supply_net]]
+
+        echo "$isolation_signal $enable_driver_srsn \"$strategies_en_pins_srsns\""
+
+        set line "supply_load_vs_domain    "
+        foreach supply $strategies_en_pins_srsns {
+            set supply_load_pd [get_object_name [get_power_domains -of [get_cells -of [filter_collection $strategies_cells_en_pins "UPF_related_supply_set.power_supply_net.normalized_supply_net==$supply"]]]]
+            set line "$line $supply:$supply_load_pd"
+        }
+        echo $line
+        echo ""
+    }
+
+}
+
+define_proc_attributes ::upf::generate_iso_enable_hetro_report \
+    -info "remove level shifter or iso" \
+    -command_group upf \
+    -define_args {
+    }
+
+
+
+proc ::upf::find_secondary_load_in_each_va {args} {
+    parse_proc_arguments -args $args opts
+    connect_pg_net -automatic
+    if {[info exists opts(-secondary_supply_loads)]} {
+        upvar 1 $opts(-secondary_supply_loads) a_secondary_supply_loads
+    }
+    array unset a_secondary_supply_loads
+    upf::normalize_supply_net_attribute -force
+    set supply_nets [get_supply_nets [get_attribute [get_supply_nets ] normalized_supply_net]]
+    array unset supply_leaf_pins
+    foreach_in_collection snet $supply_nets {
+        if {[get_attribute $snet voltage_early] == 0.0} {continue} ; #this is ground
+        set snet_name [get_object_name $snet]
+        set leaf_pin [get_pins -all -of [get_nets -all $snet_name] -leaf -filter "port_type!=pwell && port_type!=nwell"]
+        set supply_leaf_pins($snet_name) $leaf_pin
+    }
+    foreach_in_collection va [get_voltage_areas] {
+        set va_name [get_object_name $va] 
+        set va_primary [get_attribute $va normalized_power_net]
+        set secondary_supply_nets [remove_from_collection $supply_nets [get_supply_nets $va_primary]]
+        set va_domains [get_power_domains -of $va]
+        set va_cells [get_cells -of $va_domains]
+        set va_cell_pins [get_pins -quiet -all -of $va_cells]
+        foreach_in_collection secondary_supply $secondary_supply_nets {
+            set snet_name [get_object_name $secondary_supply]
+            if {$snet_name eq "VSS"} {continue}
+            #set a_secondary_supply_loads($va_primary,$snet_name) [remove_from_collection $va_cells -intersect [get_cells -of $supply_leaf_pins($snet_name)]]
+            set a_secondary_supply_loads($va_primary,$snet_name) [remove_from_collection $va_cell_pins -intersect $supply_leaf_pins($snet_name)]
+        }
+    }
+    echo "voltage area primary,secondary supply,size of load on secondary supply in given VA"
+    foreach key [lsort [array names a_secondary_supply_loads]] {
+        echo "$key,[sizeof_collection $a_secondary_supply_loads($key)]"
+    }
+}
+
+define_proc_attributes ::upf::find_secondary_load_in_each_va \
+    -info "remove level shifter or iso" \
+    -command_group upf \
+    -define_args {
+        {-secondary_supply_loads "array to be upvared to store secondary load info" "" string optional}
+    }
+
+
+
+proc ::upf::create_par_bbox_netlist_fc {args} {
+    parse_proc_arguments -args $args opts
+    if {[info exists opts(-in)]} {
+        read_verilog $opts(-in)
+    }
+    set partition_modules ""
+    if {[info exists opts(-partition_names)]} {
+        set partition_modules [lsort -unique $opts(-partition_names)]
+    } else {
+        set partition_modules [hier::get_designs -node_type partition]
+        if {[info exists opts(-additional_hierarchies)]} {
+            set partition_modules [join [lsort -unique "$partition_modules $opts(-additional_hierarchies)"]]
+        }
+    }
+    foreach partition_module $partition_modules {
+        puts "INFO working on $partition_module"
+        if {[get_lib_cells -quiet */$partition_module] != {}} {
+            puts "INFO skipping $partition_module as it is blackbox"
+            continue
+        }
+        edit_module [get_modules $partition_module] {
+            redirect /dev/null {catch {remove_cells *}}
+            redirect /dev/null {catch {remove_nets *}}
+        }
+    }
+    write_verilog -hierarchy all $opts(-out)
+}
+define_proc_attributes ::upf::create_par_bbox_netlist_fc \
+    -info "Temporally adds or removes blockings before or after power switch insertion" \
+    -command_group upf \
+    -define_args {
+        {-additional_hierarchies "output file name" "" string optional}
+        {-partition_names "" "" string optional}
+        {-in "" "" string optional}
+        {-out "" "" string required}
+    }
+
+
